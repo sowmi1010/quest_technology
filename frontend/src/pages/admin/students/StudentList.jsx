@@ -1,19 +1,154 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  adminDeleteStudent,
-  adminGetStudents,
-} from "../../../services/studentApi";
+  Search,
+  Plus,
+  RefreshCcw,
+  Trash2,
+  Pencil,
+  UserCircle2,
+  X,
+  Users,
+  BadgeCheck,
+  BadgeX,
+  Filter,
+  ArrowUpDown,
+} from "lucide-react";
+
+import { adminDeleteStudent, adminGetStudents } from "../../../services/studentApi";
+
+const API_URL = import.meta?.env?.VITE_API_URL || "http://localhost:5000";
+
+function clsx(...a) {
+  return a.filter(Boolean).join(" ");
+}
+
+function fmt(v) {
+  return String(v || "").trim();
+}
+
+function Modal({ open, title, children, onClose }) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-50 grid place-items-center p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.98, filter: "blur(6px)" }}
+            animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: 10, scale: 0.98, filter: "blur(6px)" }}
+            className="relative w-full max-w-md rounded-2xl border border-white/10 bg-slate-950/80 p-5 shadow-2xl backdrop-blur-xl"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="text-base font-extrabold text-white">{title}</div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mt-4">{children}</div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function Toast({ show, type, message, onClose }) {
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          className="fixed right-4 top-4 z-50"
+          initial={{ opacity: 0, y: -10, filter: "blur(6px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          exit={{ opacity: 0, y: -10, filter: "blur(6px)" }}
+        >
+          <div
+            className={clsx(
+              "rounded-2xl border px-4 py-3 shadow-xl backdrop-blur-xl",
+              type === "success"
+                ? "border-emerald-200/40 bg-emerald-50/80 text-emerald-900"
+                : "border-rose-200/40 bg-rose-50/80 text-rose-900"
+            )}
+          >
+            <div className="flex items-start gap-3">
+              <div className="text-sm font-semibold">{message}</div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="ml-auto grid h-8 w-8 place-items-center rounded-xl border border-black/10 bg-black/5 hover:bg-black/10"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function StatCard({ icon: Icon, label, value, tone = "sky" }) {
+  const toneCls =
+    tone === "emerald"
+      ? "border-emerald-200/20 bg-emerald-500/10"
+      : tone === "rose"
+      ? "border-rose-200/20 bg-rose-500/10"
+      : "border-sky-200/20 bg-sky-500/10";
+
+  return (
+    <div className={clsx("rounded-2xl border p-4", toneCls)}>
+      <div className="flex items-center gap-3">
+        <div className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5">
+          <Icon className="h-5 w-5 text-white/75" />
+        </div>
+        <div>
+          <div className="text-xs font-semibold text-white/55">{label}</div>
+          <div className="mt-0.5 text-xl font-extrabold text-white">{value}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function StudentList() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  // UI state
+  const [q, setQ] = useState("");
+  const [batch, setBatch] = useState("ALL");
+  const [status, setStatus] = useState("ALL");
+  const [sort, setSort] = useState("NEWEST"); // NEWEST | NAME
+
+  const [toast, setToast] = useState({ show: false, type: "success", message: "" });
+  const [del, setDel] = useState({ open: false, id: "", name: "", studentId: "" });
+
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, type, message });
+    window.clearTimeout(showToast._t);
+    showToast._t = window.setTimeout(() => setToast({ show: false, type, message: "" }), 2200);
+  };
 
   const load = async () => {
     setLoading(true);
     try {
       const res = await adminGetStudents();
-      setRows(res.data.data || []);
+      setRows(res?.data?.data || []);
+    } catch {
+      setRows([]);
+      showToast("Failed to load students", "error");
     } finally {
       setLoading(false);
     }
@@ -23,105 +158,378 @@ export default function StudentList() {
     load();
   }, []);
 
-  const onDelete = async (id) => {
-    if (!confirm("Delete this student?")) return;
-    await adminDeleteStudent(id);
-    load();
+  const askDelete = (s) => {
+    setDel({ open: true, id: s._id, name: s.name, studentId: s.studentId });
   };
 
-  if (loading) return <div className="p-6">Loading...</div>;
+  const doDelete = async () => {
+    if (!del.id) return;
+    setBusy(true);
+    try {
+      await adminDeleteStudent(del.id);
+      showToast("Student deleted", "success");
+      setDel({ open: false, id: "", name: "", studentId: "" });
+      await load();
+    } catch {
+      showToast("Failed to delete student", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const stats = useMemo(() => {
+    const total = rows.length;
+    const active = rows.filter((s) => (s.status || "ACTIVE") === "ACTIVE").length;
+    const inactive = total - active;
+    return { total, active, inactive };
+  }, [rows]);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+
+    let list = rows;
+
+    if (batch !== "ALL") list = list.filter((s) => (s.batchType || "") === batch);
+    if (status !== "ALL") list = list.filter((s) => (s.status || "ACTIVE") === status);
+
+    if (needle) {
+      list = list.filter((s) => {
+        const hay = [
+          s.studentId,
+          s.name,
+          s.studentNumber,
+          s.fatherNumber,
+          s.batchType,
+          s.courseId?.title,
+        ]
+          .map((x) => String(x || "").toLowerCase())
+          .join(" ");
+        return hay.includes(needle);
+      });
+    }
+
+    if (sort === "NAME") {
+      list = [...list].sort((a, b) => fmt(a.name).localeCompare(fmt(b.name)));
+    } else {
+      // NEWEST: if createdAt exists use it else keep as-is
+      list = [...list].sort((a, b) => {
+        const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return db - da;
+      });
+    }
+
+    return list;
+  }, [rows, q, batch, status, sort]);
+
+  const batches = useMemo(() => {
+    const set = new Set(rows.map((r) => r.batchType).filter(Boolean));
+    return ["ALL", ...Array.from(set)];
+  }, [rows]);
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-peacock-navy">Students</h1>
+    <div className="p-4 sm:p-6">
+      <Toast
+        show={toast.show}
+        type={toast.type}
+        message={toast.message}
+        onClose={() => setToast({ show: false, type: toast.type, message: "" })}
+      />
 
-        <Link
-          to="/admin/students/new"
-          className="px-4 py-2 rounded-xl bg-peacock-blue text-white font-semibold hover:opacity-90"
-        >
-          + Add Student
-        </Link>
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 10, filter: "blur(8px)" }}
+        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-5 sm:p-6 backdrop-blur-xl"
+      >
+        <div className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-sky-500/18 blur-3xl" />
+        <div className="pointer-events-none absolute -right-16 -bottom-16 h-48 w-48 rounded-full bg-emerald-500/12 blur-3xl" />
+
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl border border-white/10 bg-white/5">
+              <Users className="h-6 w-6 text-white/75" />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-white/50">Students</div>
+              <h1 className="text-2xl font-extrabold text-white">Student List</h1>
+              <p className="mt-1 text-sm text-white/60">
+                Search, filter and manage student profiles.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={load}
+              disabled={busy}
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-extrabold text-white/85 hover:bg-white/10 transition active:scale-[0.98] disabled:opacity-60"
+            >
+              <RefreshCcw className="h-5 w-5" />
+              Refresh
+            </button>
+
+            <Link
+              to="/admin/students/new"
+              className="inline-flex items-center gap-2 rounded-2xl bg-sky-500/85 px-5 py-3 text-sm font-extrabold text-white
+                         shadow-[0_18px_45px_-25px_rgba(56,189,248,0.65)]
+                         transition hover:brightness-110 active:scale-[0.98]"
+            >
+              <Plus className="h-5 w-5" />
+              Add Student
+            </Link>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <StatCard icon={Users} label="Total" value={stats.total} tone="sky" />
+          <StatCard icon={BadgeCheck} label="Active" value={stats.active} tone="emerald" />
+          <StatCard icon={BadgeX} label="Inactive" value={stats.inactive} tone="rose" />
+        </div>
+
+        {/* Controls */}
+        <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-12">
+          <div className="lg:col-span-6">
+            <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <Search className="h-5 w-5 text-white/45" />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search: name, student id, phone, parent phone, course..."
+                className="w-full bg-transparent text-sm text-white placeholder:text-white/35 outline-none"
+              />
+              {q && (
+                <button
+                  type="button"
+                  onClick={() => setQ("")}
+                  className="grid h-9 w-9 place-items-center rounded-2xl border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+                  title="Clear"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="lg:col-span-2">
+            <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+              <Filter className="h-4 w-4 text-white/50" />
+              <select
+                value={batch}
+                onChange={(e) => setBatch(e.target.value)}
+                className="w-full bg-transparent text-sm font-extrabold text-white outline-none"
+              >
+                {batches.map((b) => (
+                  <option key={b} value={b} className="text-black">
+                    {b === "ALL" ? "All Batches" : b}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="lg:col-span-2">
+            <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+              <Filter className="h-4 w-4 text-white/50" />
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="w-full bg-transparent text-sm font-extrabold text-white outline-none"
+              >
+                <option value="ALL" className="text-black">
+                  All Status
+                </option>
+                <option value="ACTIVE" className="text-black">
+                  ACTIVE
+                </option>
+                <option value="INACTIVE" className="text-black">
+                  INACTIVE
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <div className="lg:col-span-2">
+            <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+              <ArrowUpDown className="h-4 w-4 text-white/50" />
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+                className="w-full bg-transparent text-sm font-extrabold text-white outline-none"
+              >
+                <option value="NEWEST" className="text-black">
+                  Newest
+                </option>
+                <option value="NAME" className="text-black">
+                  Name (A-Z)
+                </option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Table */}
+      <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl">
+        {loading ? (
+          <div className="p-5">
+            <div className="grid gap-3">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <div key={i} className="h-12 rounded-2xl bg-white/10 animate-pulse" />
+              ))}
+            </div>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="p-6 text-white/70">No students found.</div>
+        ) : (
+          <div className="max-h-[70vh] overflow-auto">
+            <table className="w-full text-sm text-white/85">
+              <thead className="sticky top-0 z-10 bg-slate-950/70 backdrop-blur-xl">
+                <tr className="border-b border-white/10">
+                  <th className="p-4 text-left font-semibold text-white/65">Photo</th>
+                  <th className="p-4 text-left font-semibold text-white/65">Student ID</th>
+                  <th className="p-4 text-left font-semibold text-white/65">Name</th>
+                  <th className="p-4 text-left font-semibold text-white/65">Course</th>
+                  <th className="p-4 text-left font-semibold text-white/65">Student Phone</th>
+                  <th className="p-4 text-left font-semibold text-white/65">Parent Phone</th>
+                  <th className="p-4 text-left font-semibold text-white/65">Batch</th>
+                  <th className="p-4 text-left font-semibold text-white/65">Status</th>
+                  <th className="p-4 text-left font-semibold text-white/65">Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filtered.map((s) => (
+                  <tr
+                    key={s._id}
+                    className="border-t border-white/10 hover:bg-white/5 transition"
+                  >
+                    <td className="p-4">
+                      {s.photoUrl ? (
+                        <img
+                          src={`${API_URL}${s.photoUrl}`}
+                          alt={s.name}
+                          className="h-10 w-10 rounded-2xl object-cover border border-white/10"
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-2xl bg-white/10 border border-white/10 grid place-items-center text-[10px] font-bold text-white/45">
+                          NO
+                        </div>
+                      )}
+                    </td>
+
+                    <td className="p-4 font-extrabold text-white">{s.studentId}</td>
+
+                    <td className="p-4">
+                      <div className="font-bold text-white">{s.name}</div>
+                      <div className="text-xs text-white/50">
+                        {s.createdAt ? new Date(s.createdAt).toLocaleDateString() : ""}
+                      </div>
+                    </td>
+
+                    <td className="p-4 text-white/80">{s.courseId?.title || "-"}</td>
+                    <td className="p-4 text-white/80">{s.studentNumber || "-"}</td>
+                    <td className="p-4 text-white/80">{s.fatherNumber || "-"}</td>
+                    <td className="p-4 text-white/80">{s.batchType || "-"}</td>
+
+                    <td className="p-4">
+                      <span
+                        className={clsx(
+                          "inline-flex items-center gap-2 rounded-2xl border px-3 py-1.5 text-xs font-extrabold",
+                          (s.status || "ACTIVE") === "ACTIVE"
+                            ? "border-emerald-200/20 bg-emerald-500/10 text-emerald-200"
+                            : "border-rose-200/20 bg-rose-500/10 text-rose-200"
+                        )}
+                      >
+                        {(s.status || "ACTIVE") === "ACTIVE" ? (
+                          <BadgeCheck className="h-4 w-4" />
+                        ) : (
+                          <BadgeX className="h-4 w-4" />
+                        )}
+                        {s.status || "ACTIVE"}
+                      </span>
+                    </td>
+
+                    <td className="p-4">
+                      <div className="flex flex-wrap gap-2">
+                        <Link
+                          to={`/admin/students/${s._id}/profile`}
+                          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-extrabold text-white/85 hover:bg-white/10 transition"
+                        >
+                          <UserCircle2 className="h-4 w-4" />
+                          Profile
+                        </Link>
+
+                        <Link
+                          to={`/admin/students/${s._id}`}
+                          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-extrabold text-white/85 hover:bg-white/10 transition"
+                        >
+                          <Pencil className="h-4 w-4" />
+                          Edit
+                        </Link>
+
+                        <button
+                          type="button"
+                          onClick={() => askDelete(s)}
+                          className="inline-flex items-center gap-2 rounded-2xl border border-rose-200/20 bg-rose-500/10 px-4 py-2 text-xs font-extrabold text-rose-200 hover:bg-rose-500/15 transition"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      <div className="mt-4 overflow-auto bg-white rounded-2xl border border-peacock-border">
-        <table className="w-full text-sm">
-          <thead className="bg-peacock-bg">
-            <tr>
-              <th className="p-3 text-left">Photo</th>
-              <th className="p-3 text-left">Student ID</th>
-              <th className="p-3 text-left">Name</th>
-              <th className="p-3 text-left">Course</th>
-              <th className="p-3 text-left">Student Phone</th>
-              <th className="p-3 text-left">Parent Phone</th>
-              <th className="p-3 text-left">Batch</th>
-              <th className="p-3 text-left">Action</th>
-            </tr>
-          </thead>
+      {/* Delete Modal */}
+      <Modal
+        open={del.open}
+        title="Delete student?"
+        onClose={() => setDel({ open: false, id: "", name: "", studentId: "" })}
+      >
+        <div className="text-sm text-white/70">
+          This action will permanently remove the student.
+        </div>
 
-          <tbody>
-            {rows.map((s) => (
-              <tr key={s._id} className="border-t">
-                <td className="p-3">
-                  {s.photoUrl ? (
-                    <img
-                      src={`http://localhost:5000${s.photoUrl}`}
-                      alt={s.name}
-                      className="h-10 w-10 rounded-full object-cover border"
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded-full bg-peacock-bg border border-peacock-border flex items-center justify-center text-xs text-gray-500">
-                      No
-                    </div>
-                  )}
-                </td>
+        <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/85">
+          <div className="flex items-center justify-between">
+            <span className="text-white/55">Student</span>
+            <span className="font-extrabold text-white">{del.name}</span>
+          </div>
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-white/55">Student ID</span>
+            <span className="font-extrabold text-white">{del.studentId}</span>
+          </div>
+        </div>
 
-                <td className="p-3 font-semibold text-peacock-navy">
-                  {s.studentId}
-                </td>
-                <td className="p-3">{s.name}</td>
-                <td className="p-3">{s.courseId?.title || "-"}</td>
-                <td className="p-3">{s.studentNumber || "-"}</td>
-                <td className="p-3">{s.fatherNumber || "-"}</td>
-                <td className="p-3">{s.batchType || "-"}</td>
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setDel({ open: false, id: "", name: "", studentId: "" })}
+            className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-extrabold text-white/85 hover:bg-white/10 disabled:opacity-60"
+            disabled={busy}
+          >
+            Cancel
+          </button>
 
-                <td className="p-3">
-                  <div className="flex gap-3">
-                    <Link
-                      to={`/admin/students/${s._id}`}
-                      className="text-peacock-blue font-semibold underline"
-                    >
-                      Edit
-                    </Link>
-
-                    <button
-                      onClick={() => onDelete(s._id)}
-                      className="text-red-600 font-semibold underline"
-                    >
-                      Delete
-                    </button>
-
-                    <Link
-                      to={`/admin/students/${s._id}/profile`}
-                      className="text-peacock-green font-semibold underline"
-                    >
-                      Profile
-                    </Link>
-                  </div>
-                </td>
-              </tr>
-            ))}
-
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan="8" className="p-4 text-center text-gray-500">
-                  No students yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+          <button
+            type="button"
+            onClick={doDelete}
+            className="flex-1 rounded-2xl bg-rose-500/85 px-4 py-3 text-sm font-extrabold text-white
+                       transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
+            disabled={busy}
+          >
+            {busy ? "Deleting..." : "Delete"}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

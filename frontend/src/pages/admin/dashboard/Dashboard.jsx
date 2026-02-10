@@ -1,6 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../../services/api";
+
+const STATUS_META = {
+  NEW: { label: "NEW", cls: "bg-blue-500/15 text-blue-200 border-blue-400/25" },
+  CALLED: { label: "CALLED", cls: "bg-amber-500/15 text-amber-200 border-amber-400/25" },
+  INTERESTED: { label: "INTERESTED", cls: "bg-green-500/15 text-green-200 border-green-400/25" },
+  JOINED: { label: "JOINED", cls: "bg-emerald-500/15 text-emerald-200 border-emerald-400/25" },
+  NOT_INTERESTED: { label: "NOT INTERESTED", cls: "bg-red-500/15 text-red-200 border-red-400/25" },
+};
+
+function fmtDate(d) {
+  if (!d) return "-";
+  return new Date(d).toLocaleDateString();
+}
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -12,20 +25,33 @@ export default function Dashboard() {
 
   const [latestEnquiries, setLatestEnquiries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [errMsg, setErrMsg] = useState("");
+
+  const admin = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("admin") || "{}");
+    } catch {
+      return {};
+    }
+  }, []);
 
   const load = async () => {
     setLoading(true);
+    setErrMsg("");
+
     try {
-      // ✅ Admin courses (protected)
       const coursesRes = await api.get("/courses");
       const courses = coursesRes.data?.data || [];
 
-      // ✅ Admin enquiries (protected)
       const enqRes = await api.get("/enquiries");
       const enquiries = enqRes.data?.data || [];
 
       const newEnquiries = enquiries.filter((e) => e.status === "NEW").length;
-      const publicCourses = courses.filter((c) => c.isPublic).length;
+      const publicCourses = courses.filter((c) => !!c.isPublic).length;
+
+      const sortedEnq = [...enquiries].sort(
+        (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+      );
 
       setStats({
         totalCourses: courses.length,
@@ -34,10 +60,10 @@ export default function Dashboard() {
         newEnquiries,
       });
 
-      setLatestEnquiries(enquiries.slice(0, 7));
+      setLatestEnquiries(sortedEnq.slice(0, 7));
     } catch (err) {
-      // If token missing/invalid, ProtectedRoute already handles redirect.
       setLatestEnquiries([]);
+      setErrMsg("Failed to load dashboard data.");
     } finally {
       setLoading(false);
     }
@@ -47,103 +73,163 @@ export default function Dashboard() {
     load();
   }, []);
 
-  const admin = JSON.parse(localStorage.getItem("admin") || "{}");
-
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-peacock-navy">
-            Dashboard
-          </h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Welcome, <span className="font-semibold">{admin?.name || "Admin"}</span>
+          <p className="text-[11px] uppercase tracking-[0.22em] text-white/45">
+            Admin Panel
+          </p>
+          <h1 className="text-3xl font-extrabold text-white">Dashboard</h1>
+          <p className="mt-1 text-sm text-white/60">
+            Welcome back,{" "}
+            <span className="font-semibold text-white">
+              {admin?.name || "Admin"}
+            </span>
+            .
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link
             to="/admin/enquiries"
             className="px-4 py-2 rounded-xl bg-peacock-blue text-white font-semibold hover:opacity-90"
           >
             View Enquiries
           </Link>
+
           <Link
             to="/admin/courses"
             className="px-4 py-2 rounded-xl bg-peacock-green text-white font-semibold hover:opacity-90"
           >
             Manage Courses
           </Link>
+
+          <button
+            onClick={load}
+            className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-white font-semibold hover:bg-white/10"
+          >
+            🔄 Refresh
+          </button>
         </div>
       </div>
 
+      {/* Error */}
+      {errMsg && (
+        <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
+          ❌ {errMsg}
+        </div>
+      )}
+
       {/* KPI Cards */}
-      <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Courses" value={stats.totalCourses} icon="📚" />
-        <StatCard title="Public Courses" value={stats.publicCourses} icon="🌍" />
-        <StatCard title="Total Enquiries" value={stats.totalEnquiries} icon="📞" />
-        <StatCard title="New Enquiries" value={stats.newEnquiries} icon="🆕" />
+      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Total Courses"
+          value={stats.totalCourses}
+          hint="All courses in admin panel"
+          icon="📚"
+        />
+        <StatCard
+          title="Public Courses"
+          value={stats.publicCourses}
+          hint="Visible in public website"
+          icon="🌍"
+          accent="green"
+        />
+        <StatCard
+          title="Total Enquiries"
+          value={stats.totalEnquiries}
+          hint="All enquiries received"
+          icon="📞"
+        />
+        <StatCard
+          title="New Enquiries"
+          value={stats.newEnquiries}
+          hint="Needs follow-up"
+          icon="🆕"
+          accent="blue"
+        />
       </div>
 
-      {/* Content Row */}
-      <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Content */}
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Latest Enquiries */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-peacock-border overflow-hidden">
-          <div className="p-5 flex items-center justify-between">
-            <h2 className="font-bold text-peacock-navy">Latest Enquiries</h2>
+        <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4">
+            <div>
+              <h2 className="text-white font-bold text-lg">Latest Enquiries</h2>
+              <p className="text-xs text-white/50 mt-1">Showing latest 7 submissions.</p>
+            </div>
             <Link to="/admin/enquiries" className="text-peacock-blue font-semibold underline">
               See all
             </Link>
           </div>
 
           {loading ? (
-            <div className="p-5 text-gray-600">Loading...</div>
+            <div className="p-5 text-white/70">Loading...</div>
+          ) : latestEnquiries.length === 0 ? (
+            <div className="p-6 text-white/60">No enquiries found yet.</div>
           ) : (
             <div className="overflow-auto">
               <table className="w-full text-sm">
-                <thead className="bg-peacock-bg">
+                <thead className="bg-white/5 text-white/60">
                   <tr>
-                    <th className="p-3 text-left">Date</th>
-                    <th className="p-3 text-left">Name</th>
-                    <th className="p-3 text-left">Phone</th>
-                    <th className="p-3 text-left">Course</th>
-                    <th className="p-3 text-left">Status</th>
-                    <th className="p-3 text-left">Action</th>
+                    <th className="p-4 text-left">Date</th>
+                    <th className="p-4 text-left">Name</th>
+                    <th className="p-4 text-left">Phone</th>
+                    <th className="p-4 text-left">Course</th>
+                    <th className="p-4 text-left">Status</th>
+                    <th className="p-4 text-left">Action</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {latestEnquiries.map((e) => (
-                    <tr key={e._id} className="border-t">
-                      <td className="p-3">
-                        {e.createdAt ? new Date(e.createdAt).toLocaleDateString() : "-"}
-                      </td>
-                      <td className="p-3 font-semibold text-peacock-navy">{e.name}</td>
-                      <td className="p-3">{e.phone}</td>
-                      <td className="p-3">{e.course}</td>
-                      <td className="p-3">
-                        <span className="px-2 py-1 rounded-lg bg-peacock-bg border border-peacock-border">
-                          {e.status}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <Link
-                          to={`/admin/enquiries/${e._id}`}
-                          className="text-peacock-blue font-semibold underline"
-                        >
-                          View
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
 
-                  {latestEnquiries.length === 0 && (
-                    <tr>
-                      <td colSpan="6" className="p-5 text-center text-gray-500">
-                        No enquiries found.
-                      </td>
-                    </tr>
-                  )}
+                <tbody>
+                  {latestEnquiries.map((e) => {
+                    const meta = STATUS_META[e.status] || {
+                      label: e.status || "-",
+                      cls: "bg-white/5 text-white/70 border-white/10",
+                    };
+
+                    return (
+                      <tr key={e._id} className="border-t border-white/10 hover:bg-white/5">
+                        <td className="p-4 text-white/70">{fmtDate(e.createdAt)}</td>
+
+                        <td className="p-4">
+                          <div className="font-semibold text-white">{e.name}</div>
+                          <div className="text-xs text-white/45">
+                            {e.category || "-"} • {e.preferredBatch || "-"}
+                          </div>
+                        </td>
+
+                        <td className="p-4">
+                          <a
+                            href={`tel:${e.phone}`}
+                            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 font-semibold text-white hover:bg-white/10"
+                          >
+                            📞 {e.phone}
+                          </a>
+                        </td>
+
+                        <td className="p-4 text-white/70">{e.course || "-"}</td>
+
+                        <td className="p-4">
+                          <span className={`px-3 py-1 rounded-xl border text-xs font-bold ${meta.cls}`}>
+                            {meta.label}
+                          </span>
+                        </td>
+
+                        <td className="p-4">
+                          <Link
+                            to={`/admin/enquiries/${e._id}`}
+                            className="text-peacock-blue font-semibold underline"
+                          >
+                            View
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -151,24 +237,21 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white rounded-2xl border border-peacock-border p-5 h-fit">
-          <h2 className="font-bold text-peacock-navy">Quick Actions</h2>
+        <div className="h-fit rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-white font-bold text-lg">Quick Actions</h2>
+            <span className="text-xs text-white/45">Shortcuts</span>
+          </div>
 
           <div className="mt-4 grid gap-3">
             <QuickLink to="/admin/courses/new" title="Add New Course" desc="Create course with image & syllabus" icon="➕" />
             <QuickLink to="/admin/enquiries" title="Manage Enquiries" desc="Update status, notes & follow-ups" icon="📞" />
             <QuickLink to="/admin/courses" title="Course List" desc="Edit course visibility for public" icon="📋" />
+            <QuickLink to="/admin/students" title="Students" desc="Profiles, attendance & payments" icon="🎓" />
           </div>
 
-          <button
-            onClick={load}
-            className="mt-5 w-full px-4 py-2 rounded-xl border border-peacock-border bg-peacock-bg font-semibold text-peacock-navy hover:bg-peacock-border"
-          >
-            🔄 Refresh
-          </button>
-
-          <div className="mt-4 text-xs text-gray-500">
-            Next: Students, Payments, Attendance will be added here.
+          <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-white/60">
+            ✅ Next upgrade: show Payments Due + Today Attendance summary here.
           </div>
         </div>
       </div>
@@ -176,17 +259,23 @@ export default function Dashboard() {
   );
 }
 
-/* ---------- small components ---------- */
+/* ---------- components ---------- */
 
-function StatCard({ title, value, icon }) {
+function StatCard({ title, value, hint, icon, accent }) {
+  const accentCls =
+    accent === "green"
+      ? "border-emerald-400/20 bg-emerald-400/10"
+      : accent === "blue"
+      ? "border-blue-400/20 bg-blue-400/10"
+      : "border-white/10 bg-white/5";
+
   return (
-    <div className="bg-white rounded-2xl border border-peacock-border p-5 shadow-sm">
-      <div className="flex items-center justify-between">
+    <div className={`rounded-2xl border backdrop-blur-xl p-5 ${accentCls}`}>
+      <div className="flex items-start justify-between">
         <div>
-          <div className="text-xs text-gray-500">{title}</div>
-          <div className="mt-1 text-2xl font-extrabold text-peacock-navy">
-            {value}
-          </div>
+          <div className="text-xs text-white/50">{title}</div>
+          <div className="mt-1 text-3xl font-extrabold text-white">{value}</div>
+          {hint && <div className="mt-1 text-xs text-white/45">{hint}</div>}
         </div>
         <div className="text-2xl">{icon}</div>
       </div>
@@ -198,13 +287,15 @@ function QuickLink({ to, title, desc, icon }) {
   return (
     <Link
       to={to}
-      className="rounded-2xl border border-peacock-border p-4 hover:bg-peacock-bg transition block"
+      className="group block rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:bg-white/10"
     >
       <div className="flex items-start gap-3">
         <div className="text-xl">{icon}</div>
         <div>
-          <div className="font-semibold text-peacock-navy">{title}</div>
-          <div className="text-sm text-gray-600 mt-1">{desc}</div>
+          <div className="font-semibold text-white group-hover:text-peacock-blue">
+            {title}
+          </div>
+          <div className="mt-1 text-sm text-white/60">{desc}</div>
         </div>
       </div>
     </Link>

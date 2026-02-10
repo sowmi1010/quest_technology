@@ -13,7 +13,6 @@ import {
   IconLaptop,
   IconMessageCircle,
   IconPhone,
-  IconShield,
   IconSpark,
   IconWrench,
 } from "../../components/ui/PublicIcons";
@@ -49,53 +48,21 @@ const highlights = [
 ];
 
 const categoryCards = [
-  {
-    title: "IT",
-    desc: "Software and cloud programs for job-ready skills.",
-    icon: IconLaptop,
-  },
-  {
-    title: "Mechanical",
-    desc: "Design and drafting tool mastery with guided practice.",
-    icon: IconWrench,
-  },
-  {
-    title: "Accounts",
-    desc: "Finance and business software training with practical use cases.",
-    icon: IconCalculator,
-  },
-  {
-    title: "Tuition",
-    desc: "Structured subject support for state board students.",
-    icon: IconBookOpen,
-  },
-  {
-    title: "JEE / NEET",
-    desc: "Concept revision, mock tests, and exam-focused mentoring.",
-    icon: IconShield,
-  },
+  { title: "IT", desc: "Software and cloud programs for job-ready skills.", icon: IconLaptop },
+  { title: "Mechanical", desc: "Design and drafting tool mastery with guided practice.", icon: IconWrench },
+  { title: "Accounts", desc: "Finance and business software training with practical use cases.", icon: IconCalculator },
+  { title: "Tuition", desc: "Structured subject support for state board students.", icon: IconBookOpen },
+  { title: "JEE / NEET", desc: "Concept revision, mock tests, and exam-focused mentoring.", icon: IconGraduationCap },
 ];
 
 const batches = [
-  {
-    name: "Batch A",
-    days: "Monday, Wednesday, Friday",
-    note: "Ideal for working learners and steady progress.",
-  },
-  {
-    name: "Batch B",
-    days: "Tuesday, Thursday, Saturday",
-    note: "Balanced schedule for college students.",
-  },
-  {
-    name: "Batch C",
-    days: "Weekdays plus Sunday",
-    note: "Fast-track option with additional support.",
-  },
+  { name: "Batch A", days: "Monday, Wednesday, Friday", note: "Ideal for working learners and steady progress." },
+  { name: "Batch B", days: "Tuesday, Thursday, Saturday", note: "Balanced schedule for college students." },
+  { name: "Batch C", days: "Weekdays plus Sunday", note: "Fast-track option with additional support." },
 ];
 
 const assurances = [
-  "Installment plans from Rs 5,000",
+  "Installment plans from ₹5,000",
   "Three batch patterns with flexible timing",
   "Placement and interview guidance",
 ];
@@ -128,32 +95,41 @@ export default function Home() {
 
   return (
     <div className="pb-10">
+      {/* HERO */}
       <section className="mx-auto max-w-7xl px-4 pb-8 pt-10 sm:px-6">
         <div className="grid gap-8 lg:grid-cols-[1.25fr_0.75fr]">
-          <div className="surface-card animate-fade-up hover-tilt relative overflow-hidden p-7 md:p-10">
-            <div className="pointer-events-none absolute -top-14 right-0 h-56 w-56 rounded-full bg-peacock-blue/15 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-peacock-green/10 blur-3xl" />
+          <div className="relative overflow-hidden rounded-3xl border border-peacock-border/60 bg-white/70 p-7 shadow-soft backdrop-blur-xl animate-fade-up hover-tilt md:p-10 dark:border-white/10 dark:bg-slate-950/35">
+            {/* Premium glows */}
+            <div className="pointer-events-none absolute -top-16 right-0 h-64 w-64 rounded-full bg-peacock-blue/15 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-peacock-green/15 blur-3xl" />
 
-            <span className="badge-soft">
-              <IconSpark className="h-4 w-4 text-peacock-blue" />
-              Skill Training, Tuition, and Career Support
+            <span className="inline-flex items-center gap-2 rounded-full border border-peacock-border/60 bg-peacock-bg/70 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.18em] text-peacock-muted dark:border-white/10 dark:bg-white/5 dark:text-white/60">
+              <IconSpark className="h-4 w-4 text-peacock-blue dark:text-sky-200" />
+              Skill Training • Tuition • Career Support
             </span>
 
-            <h1 className="mt-5 text-4xl font-extrabold leading-tight text-peacock-navy md:text-[2.85rem]">
+            <h1 className="mt-5 text-4xl font-extrabold leading-tight text-peacock-navy md:text-[2.85rem] dark:text-white">
               Build practical skills that lead to clear career outcomes.
             </h1>
 
-            <p className="section-copy mt-4 max-w-2xl">
+            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-peacock-muted md:text-base dark:text-white/60">
               Learn through guided projects, mentor support, and structured course plans in IT,
               accounts, mechanical tools, school tuition, and exam preparation tracks.
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
-              <Link to="/courses" className="btn-primary">
+              <Link
+                to="/courses"
+                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-peacock-blue to-peacock-green px-5 py-3 text-sm font-extrabold text-white transition hover:brightness-110 active:scale-[0.99]"
+              >
                 Explore Courses
                 <IconArrowRight className="h-4 w-4" />
               </Link>
-              <Link to="/enquiry" className="btn-secondary">
+
+              <Link
+                to="/enquiry"
+                className="inline-flex items-center justify-center rounded-2xl border border-peacock-border/60 bg-white/60 px-5 py-3 text-sm font-extrabold text-peacock-navy transition hover:-translate-y-0.5 hover:bg-white/80 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+              >
                 Start Enquiry
               </Link>
             </div>
@@ -162,10 +138,10 @@ export default function Home() {
               {assurances.map((item) => (
                 <div
                   key={item}
-                  className="surface-soft rounded-2xl px-4 py-3 text-sm font-medium text-peacock-navy"
+                  className="rounded-2xl border border-peacock-border/60 bg-peacock-bg/60 px-4 py-3 text-sm font-semibold text-peacock-navy dark:border-white/10 dark:bg-white/5 dark:text-white"
                 >
                   <div className="flex items-start gap-2">
-                    <IconCheckCircle className="mt-0.5 h-4 w-4 text-peacock-green" />
+                    <IconCheckCircle className="mt-0.5 h-4 w-4 text-peacock-green dark:text-emerald-200" />
                     <span>{item}</span>
                   </div>
                 </div>
@@ -176,32 +152,36 @@ export default function Home() {
               {impactStats.map((item) => (
                 <article
                   key={item.label}
-                  className="surface-soft rounded-2xl px-4 py-3 text-center transition duration-300 hover:border-peacock-blue/40"
+                  className="rounded-2xl border border-peacock-border/60 bg-white/50 px-4 py-3 text-center transition hover:-translate-y-0.5 hover:border-peacock-blue/40 dark:border-white/10 dark:bg-white/5"
                 >
-                  <p className="text-lg font-extrabold text-peacock-navy">{item.value}</p>
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-peacock-muted">{item.label}</p>
+                  <p className="text-lg font-extrabold text-peacock-navy dark:text-white">{item.value}</p>
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-peacock-muted dark:text-white/60">
+                    {item.label}
+                  </p>
                 </article>
               ))}
             </div>
           </div>
 
-          <aside className="surface-card animate-fade-up-delay-1 relative overflow-hidden p-6 md:p-7">
-            <div className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-peacock-blue/15 blur-2xl" />
-            <h2 className="text-xl font-bold text-peacock-navy">Quick Highlights</h2>
+          {/* RIGHT: HIGHLIGHTS */}
+          <aside className="relative overflow-hidden rounded-3xl border border-peacock-border/60 bg-white/70 p-6 shadow-soft backdrop-blur-xl animate-fade-up-delay-1 md:p-7 dark:border-white/10 dark:bg-slate-950/35">
+            <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-peacock-blue/15 blur-2xl" />
+
+            <h2 className="text-xl font-extrabold text-peacock-navy dark:text-white">Quick Highlights</h2>
 
             <div className="mt-5 grid gap-3">
               {highlights.map((item) => (
                 <div
                   key={item.title}
-                  className="surface-soft hover-tilt rounded-2xl p-4"
+                  className="rounded-2xl border border-peacock-border/60 bg-peacock-bg/60 p-4 transition hover:-translate-y-0.5 hover:border-peacock-blue/40 dark:border-white/10 dark:bg-white/5"
                 >
                   <div className="flex items-start gap-3">
-                    <span className="mt-1 rounded-xl bg-peacock-bg p-2 text-peacock-blue">
+                    <span className="mt-1 rounded-xl bg-white/60 p-2 text-peacock-blue dark:bg-white/10 dark:text-sky-200">
                       <item.icon className="h-4 w-4" />
                     </span>
                     <div>
-                      <h3 className="font-semibold text-peacock-navy">{item.title}</h3>
-                      <p className="mt-1 text-xs leading-relaxed text-peacock-muted">{item.text}</p>
+                      <h3 className="font-bold text-peacock-navy dark:text-white">{item.title}</h3>
+                      <p className="mt-1 text-xs leading-relaxed text-peacock-muted dark:text-white/60">{item.text}</p>
                     </div>
                   </div>
                 </div>
@@ -209,15 +189,19 @@ export default function Home() {
             </div>
 
             <div className="mt-6 grid grid-cols-2 gap-3">
-              <a href={`tel:${PUBLIC_CONTACT.phoneE164}`} className="btn-secondary !px-3">
+              <a
+                href={`tel:${PUBLIC_CONTACT.phoneE164}`}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-peacock-border/60 bg-white/60 px-4 py-3 text-sm font-extrabold text-peacock-navy transition hover:-translate-y-0.5 hover:bg-white/80 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+              >
                 <IconPhone className="h-4 w-4" />
                 Call
               </a>
+
               <a
                 href={PUBLIC_CONTACT.whatsapp}
                 target="_blank"
                 rel="noreferrer"
-                className="btn-primary !bg-none !bg-peacock-green !px-3"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-peacock-green to-peacock-blue px-4 py-3 text-sm font-extrabold text-white transition hover:brightness-110 active:scale-[0.99]"
               >
                 <IconMessageCircle className="h-4 w-4" />
                 WhatsApp
@@ -227,13 +211,18 @@ export default function Home() {
         </div>
       </section>
 
+      {/* CATEGORIES */}
       <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-2xl font-bold text-peacock-navy md:text-3xl">Categories</h2>
-            <p className="mt-1 text-sm text-peacock-muted">Pick the right track for your goal.</p>
+            <h2 className="text-2xl font-extrabold text-peacock-navy md:text-3xl dark:text-white">Categories</h2>
+            <p className="mt-1 text-sm text-peacock-muted dark:text-white/60">Pick the right track for your goal.</p>
           </div>
-          <Link to="/courses" className="btn-secondary !px-4 !py-2">
+
+          <Link
+            to="/courses"
+            className="inline-flex items-center gap-2 rounded-2xl border border-peacock-border/60 bg-white/60 px-4 py-2 text-sm font-extrabold text-peacock-navy transition hover:-translate-y-0.5 hover:bg-white/80 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+          >
             View all
             <IconArrowRight className="h-4 w-4" />
           </Link>
@@ -243,32 +232,37 @@ export default function Home() {
           {categoryCards.map((item, index) => (
             <article
               key={item.title}
-              className="surface-card hover-tilt animate-fade-up group p-5"
+              className="rounded-3xl border border-peacock-border/60 bg-white/70 p-5 shadow-soft backdrop-blur-xl transition hover:-translate-y-1 hover:border-peacock-blue/40 animate-fade-up dark:border-white/10 dark:bg-slate-950/35"
               style={{ animationDelay: `${index * 90}ms` }}
             >
-              <span className="inline-flex rounded-xl bg-peacock-bg p-2 text-peacock-blue">
+              <span className="inline-flex rounded-xl bg-peacock-bg p-2 text-peacock-blue dark:bg-white/10 dark:text-sky-200">
                 <item.icon className="h-5 w-5" />
               </span>
-              <h3 className="mt-3 font-semibold text-peacock-navy">{item.title}</h3>
-              <p className="mt-1 text-xs leading-relaxed text-peacock-muted">{item.desc}</p>
+              <h3 className="mt-3 font-extrabold text-peacock-navy dark:text-white">{item.title}</h3>
+              <p className="mt-1 text-xs leading-relaxed text-peacock-muted dark:text-white/60">{item.desc}</p>
             </article>
           ))}
         </div>
       </section>
 
+      {/* BATCH SCHEDULE (already premium) */}
       <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-        <div className="animate-fade-up-delay-1 relative overflow-hidden rounded-3xl border border-peacock-border/40 bg-[linear-gradient(130deg,#0f223f_0%,#173563_55%,#0a6d69_115%)] p-7 text-white shadow-lift md:p-9">
+        <div className="relative overflow-hidden rounded-3xl border border-peacock-border/40 bg-[linear-gradient(130deg,#0f223f_0%,#173563_55%,#0a6d69_115%)] p-7 text-white shadow-lift md:p-9 animate-fade-up-delay-1">
           <div className="pointer-events-none absolute -right-16 -top-12 h-56 w-56 rounded-full bg-white/20 blur-3xl" />
           <div className="pointer-events-none absolute -left-20 bottom-2 h-52 w-52 rounded-full bg-peacock-green/30 blur-3xl" />
 
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-bold md:text-3xl">Batch Schedule</h2>
+              <h2 className="text-2xl font-extrabold md:text-3xl">Batch Schedule</h2>
               <p className="mt-1 text-sm text-white/80">
                 Flexible timing patterns to fit student and professional routines.
               </p>
             </div>
-            <Link to="/enquiry" className="btn-secondary !border-white/30 !bg-white/10 !text-white">
+
+            <Link
+              to="/enquiry"
+              className="inline-flex items-center justify-center rounded-2xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-extrabold text-white transition hover:bg-white/15"
+            >
               Ask for timings
             </Link>
           </div>
@@ -277,10 +271,10 @@ export default function Home() {
             {batches.map((batch) => (
               <article
                 key={batch.name}
-                className="rounded-2xl border border-white/20 bg-white/10 p-5 backdrop-blur-sm transition duration-300 hover:-translate-y-1 hover:bg-white/15"
+                className="rounded-2xl border border-white/20 bg-white/10 p-5 backdrop-blur-sm transition hover:-translate-y-1 hover:bg-white/15"
               >
                 <p className="text-xs uppercase tracking-[0.18em] text-white/70">{batch.name}</p>
-                <p className="mt-2 flex items-center gap-2 text-sm font-semibold">
+                <p className="mt-2 flex items-center gap-2 text-sm font-extrabold">
                   <IconCalendar className="h-4 w-4 text-peacock-green" />
                   {batch.days}
                 </p>
@@ -291,20 +285,29 @@ export default function Home() {
         </div>
       </section>
 
+      {/* POPULAR COURSES */}
       <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-2xl font-bold text-peacock-navy md:text-3xl">Popular Courses</h2>
-            <p className="mt-1 text-sm text-peacock-muted">Latest published courses from the admin panel.</p>
+            <h2 className="text-2xl font-extrabold text-peacock-navy md:text-3xl dark:text-white">
+              Popular Courses
+            </h2>
+            <p className="mt-1 text-sm text-peacock-muted dark:text-white/60">
+              Latest published courses from the admin panel.
+            </p>
           </div>
-          <Link to="/courses" className="btn-secondary !px-4 !py-2">
+
+          <Link
+            to="/courses"
+            className="inline-flex items-center gap-2 rounded-2xl border border-peacock-border/60 bg-white/60 px-4 py-2 text-sm font-extrabold text-peacock-navy transition hover:-translate-y-0.5 hover:bg-white/80 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+          >
             Browse all
             <IconArrowRight className="h-4 w-4" />
           </Link>
         </div>
 
         {loading ? (
-          <div className="surface-soft mt-6 rounded-2xl p-6 text-sm text-peacock-muted">
+          <div className="mt-6 rounded-2xl border border-peacock-border/60 bg-peacock-bg/50 p-6 text-sm text-peacock-muted dark:border-white/10 dark:bg-white/5 dark:text-white/60">
             Loading courses...
           </div>
         ) : (
@@ -314,30 +317,34 @@ export default function Home() {
             ))}
 
             {topCourses.length === 0 && (
-              <div className="surface-card p-6 text-sm text-peacock-muted">
-                No courses are visible yet. Add and publish courses from the admin panel to display
-                them here.
+              <div className="rounded-3xl border border-peacock-border/60 bg-white/70 p-6 text-sm text-peacock-muted shadow-soft backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/35 dark:text-white/60">
+                No courses are visible yet. Add and publish courses from the admin panel to display them here.
               </div>
             )}
           </div>
         )}
       </section>
 
+      {/* CTA */}
       <section className="mx-auto max-w-7xl px-4 pb-12 pt-8 sm:px-6">
-        <div className="animate-fade-up-delay-2 relative overflow-hidden rounded-3xl border border-peacock-border/45 bg-gradient-to-r from-peacock-blue to-peacock-green p-8 text-white shadow-lift md:p-10">
+        <div className="relative overflow-hidden rounded-3xl border border-peacock-border/45 bg-gradient-to-r from-peacock-blue to-peacock-green p-8 text-white shadow-lift md:p-10 animate-fade-up-delay-2">
           <div className="pointer-events-none absolute -right-14 top-4 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
           <div className="pointer-events-none absolute -left-14 -bottom-16 h-52 w-52 rounded-full bg-white/10 blur-3xl" />
-          <p className="badge-soft !border-white/30 !bg-white/20 !text-white">Admissions Open</p>
-          <h2 className="mt-4 text-3xl font-bold">Ready to join Quest Technology?</h2>
-          <p className="mt-3 max-w-2xl text-sm text-white/85 md:text-base">
-            Send an enquiry and our team will share the right course path, available batches, and fee
-            plan details.
+
+          <p className="inline-flex rounded-full border border-white/30 bg-white/20 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.18em] text-white">
+            Admissions Open
           </p>
+
+          <h2 className="mt-4 text-3xl font-extrabold">Ready to join Quest Technology?</h2>
+          <p className="mt-3 max-w-2xl text-sm text-white/85 md:text-base">
+            Send an enquiry and our team will share the right course path, available batches, and fee plan details.
+          </p>
+
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link to="/enquiry" className="btn-secondary !border-white/40 !bg-white !text-peacock-navy">
+            <Link to="/enquiry" className="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-extrabold text-peacock-navy transition hover:brightness-110">
               Enquiry Now
             </Link>
-            <Link to="/courses" className="btn-secondary !border-white/35 !bg-white/10 !text-white">
+            <Link to="/courses" className="inline-flex items-center justify-center rounded-2xl border border-white/35 bg-white/10 px-5 py-3 text-sm font-extrabold text-white transition hover:bg-white/15">
               Browse Courses
             </Link>
           </div>
@@ -354,36 +361,40 @@ function CourseMiniCard({ course, index }) {
 
   return (
     <article
-      className="surface-card hover-tilt animate-fade-up group overflow-hidden"
+      className="overflow-hidden rounded-3xl border border-peacock-border/60 bg-white/70 shadow-soft backdrop-blur-xl transition hover:-translate-y-1 hover:border-peacock-blue/40 animate-fade-up dark:border-white/10 dark:bg-slate-950/35"
       style={{ animationDelay: `${index * 80}ms` }}
     >
       {img ? (
         <img src={img} alt={course.title} className="h-44 w-full object-cover" />
       ) : (
-        <div className="flex h-44 items-center justify-center bg-peacock-bg text-peacock-muted">
+        <div className="flex h-44 items-center justify-center bg-peacock-bg text-peacock-muted dark:bg-white/5 dark:text-white/60">
           <IconBookOpen className="h-7 w-7" />
         </div>
       )}
 
       <div className="p-5">
-        <p className="text-xs font-medium uppercase tracking-[0.16em] text-peacock-muted">
+        <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-peacock-muted dark:text-white/50">
           {course.categoryId?.name || "Course"}
         </p>
 
-        <h3 className="mt-2 text-lg font-bold text-peacock-navy">{course.title}</h3>
+        <h3 className="mt-2 text-lg font-extrabold text-peacock-navy dark:text-white">{course.title}</h3>
 
-        <div className="mt-3 space-y-2 text-sm text-peacock-muted">
+        <div className="mt-3 space-y-2 text-sm text-peacock-muted dark:text-white/60">
           <p className="flex items-center gap-2">
-            <IconClock className="h-4 w-4 text-peacock-blue" />
+            <IconClock className="h-4 w-4 text-peacock-blue dark:text-sky-200" />
             <span>{course.duration || "Flexible duration"}</span>
           </p>
+
           <p className="flex items-center gap-2">
-            <IconBriefcase className="h-4 w-4 text-peacock-green" />
+            <IconBriefcase className="h-4 w-4 text-peacock-green dark:text-emerald-200" />
             <span>From {formatINR(course.installmentStart ?? INSTALLMENT_START)}</span>
           </p>
         </div>
 
-        <Link to={`/courses/${course._id}`} className="btn-primary mt-4 w-full !justify-center">
+        <Link
+          to={`/courses/${course._id}`}
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-peacock-blue to-peacock-green px-4 py-3 text-sm font-extrabold text-white transition hover:brightness-110 active:scale-[0.99]"
+        >
           View Details
           <IconArrowRight className="h-4 w-4" />
         </Link>

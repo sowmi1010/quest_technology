@@ -2,6 +2,7 @@
 const withOpacity = (cssVar) => `rgb(var(${cssVar}) / <alpha-value>)`;
 
 export default {
+  darkMode: ["class", '[data-theme="dark"]'],
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",

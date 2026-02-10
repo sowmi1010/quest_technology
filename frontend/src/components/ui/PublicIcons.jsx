@@ -1,16 +1,34 @@
-function IconBase({ className = "h-5 w-5", children }) {
+const DEFAULT_SIZE = 20; // px
+const DEFAULT_STROKE = 2;
+
+function IconBase({
+  className,
+  size = DEFAULT_SIZE,
+  strokeWidth = DEFAULT_STROKE,
+  children,
+  title,
+  ...rest
+}) {
+  const computedClass = className ?? `h-5 w-5`;
+
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
+      className={computedClass}
+      width={size}
+      height={size}
+      aria-hidden={title ? undefined : "true"}
+      role={title ? "img" : "presentation"}
+      focusable="false"
+      {...rest}
     >
+      {title ? <title>{title}</title> : null}
       {children}
     </svg>
   );
@@ -95,6 +113,15 @@ export function IconFilter(props) {
       <path d="M4 6h16" />
       <path d="M7 12h10" />
       <path d="M10 18h4" />
+    </IconBase>
+  );
+}
+
+export function IconSearch(props) {
+  return (
+    <IconBase {...props}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
     </IconBase>
   );
 }
@@ -215,19 +242,25 @@ export function IconSun(props) {
   );
 }
 
-export function IconStar({ className = "h-4 w-4", filled = false }) {
+export function IconStar({ className = "h-4 w-4", filled = false, size, strokeWidth, title, ...rest }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
       fill={filled ? "currentColor" : "none"}
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth={strokeWidth ?? DEFAULT_STROKE}
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
-      aria-hidden="true"
+      width={size ?? 16}
+      height={size ?? 16}
+      aria-hidden={title ? undefined : "true"}
+      role={title ? "img" : "presentation"}
+      focusable="false"
+      {...rest}
     >
+      {title ? <title>{title}</title> : null}
       <path d="m12 3.5 2.6 5.2 5.7.8-4.1 4 1 5.7-5.2-2.7-5.2 2.7 1-5.7-4.1-4 5.7-.8L12 3.5Z" />
     </svg>
   );

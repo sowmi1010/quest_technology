@@ -1,24 +1,49 @@
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronLeft, ChevronRight, RefreshCcw, CalendarDays } from "lucide-react";
 import { getStudentAttendanceRange } from "../../../../../services/attendanceApi";
 
 function monthToRange(monthStr) {
-  // "2026-02"
   const [y, m] = monthStr.split("-").map(Number);
   const start = new Date(y, m - 1, 1);
   const end = new Date(y, m, 0);
   const fmt = (d) => d.toISOString().slice(0, 10);
-  return { start: fmt(start), end: fmt(end), year: y, monthIndex: m - 1, daysInMonth: end.getDate() };
+
+  return {
+    start: fmt(start),
+    end: fmt(end),
+    year: y,
+    monthIndex: m - 1,
+    daysInMonth: end.getDate(),
+    label: start.toLocaleString("en-IN", { month: "long", year: "numeric" }),
+  };
 }
 
 function isoKey(d) {
-  // date -> YYYY-MM-DD
   const dt = new Date(d);
   return dt.toISOString().slice(0, 10);
+}
+
+function addMonths(yyyyMm, delta) {
+  const [y, m] = yyyyMm.split("-").map(Number);
+  const dt = new Date(y, m - 1 + delta, 1);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function weekdayLabels() {
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+}
+
+function statusPill(status) {
+  if (status === "PRESENT") return "border-emerald-200/30 bg-emerald-500/15 text-emerald-200";
+  if (status === "ABSENT") return "border-rose-200/30 bg-rose-500/15 text-rose-200";
+  return "border-white/10 bg-white/5 text-white/60";
 }
 
 export default function AttendanceCalendar({ studentId }) {
   const defaultMonth = new Date().toISOString().slice(0, 7);
   const [month, setMonth] = useState(defaultMonth);
+
   const [loading, setLoading] = useState(true);
   const [map, setMap] = useState({}); // { "YYYY-MM-DD": "PRESENT"|"ABSENT" }
 
@@ -28,8 +53,7 @@ export default function AttendanceCalendar({ studentId }) {
     setLoading(true);
     try {
       const res = await getStudentAttendanceRange(studentId, info.start, info.end);
-      const list = res.data.data || [];
-
+      const list = res?.data?.data || [];
       const next = {};
       for (const r of list) next[isoKey(r.date)] = r.status;
       setMap(next);
@@ -43,7 +67,8 @@ export default function AttendanceCalendar({ studentId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month, studentId]);
 
-  // Build calendar cells
+  const todayKey = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
   const cells = useMemo(() => {
     const firstDay = new Date(info.year, info.monthIndex, 1);
     const startWeekday = firstDay.getDay(); // 0=Sun
@@ -53,15 +78,21 @@ export default function AttendanceCalendar({ studentId }) {
     for (let i = 0; i < totalCells; i++) {
       const dayNum = i - startWeekday + 1;
       if (dayNum < 1 || dayNum > info.daysInMonth) {
-        arr.push({ type: "blank" });
+        arr.push({ type: "blank", key: `b-${i}` });
       } else {
         const dateObj = new Date(info.year, info.monthIndex, dayNum);
         const key = dateObj.toISOString().slice(0, 10);
-        arr.push({ type: "day", dayNum, key, status: map[key] || "" });
+        arr.push({
+          type: "day",
+          key,
+          dayNum,
+          status: map[key] || "",
+          isToday: key === todayKey,
+        });
       }
     }
     return arr;
-  }, [info, map]);
+  }, [info, map, todayKey]);
 
   const presentCount = useMemo(
     () => Object.values(map).filter((s) => s === "PRESENT").length,
@@ -75,95 +106,169 @@ export default function AttendanceCalendar({ studentId }) {
   const percent = totalMarked ? Math.round((presentCount / totalMarked) * 100) : 0;
 
   return (
-    <div className="bg-white rounded-2xl border border-peacock-border p-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 backdrop-blur-xl">
+      {/* Header */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="font-bold text-peacock-navy">Attendance Calendar</h2>
-          <p className="text-sm text-gray-600 mt-1">
-            Present: <b className="text-green-700">{presentCount}</b> • Absent:{" "}
-            <b className="text-red-700">{absentCount}</b> • %:{" "}
-            <b className="text-peacock-blue">{percent}%</b>
-          </p>
+          <div className="flex items-center gap-2">
+            <div className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5">
+              <CalendarDays className="h-5 w-5 text-white/70" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-white">Attendance Calendar</h2>
+              <p className="text-sm text-white/60">{info.label}</p>
+            </div>
+          </div>
         </div>
 
-        <div className="flex gap-2 items-center">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setMonth((m) => addMonths(m, -1))}
+            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white/85
+                       hover:bg-white/10 transition active:scale-[0.98]"
+            title="Previous month"
+          >
+            <ChevronLeft className="h-5 w-5" />
+            Prev
+          </button>
+
           <input
             type="month"
             value={month}
             onChange={(e) => setMonth(e.target.value)}
-            className="border rounded-xl p-2 bg-white"
+            className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none
+                       focus:ring-2 focus:ring-sky-400/40"
           />
+
           <button
-            onClick={load}
-            className="px-4 py-2 rounded-xl border border-peacock-border bg-peacock-bg font-semibold text-peacock-navy hover:bg-peacock-border"
+            type="button"
+            onClick={() => setMonth((m) => addMonths(m, 1))}
+            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white/85
+                       hover:bg-white/10 transition active:scale-[0.98]"
+            title="Next month"
           >
-            🔄 Refresh
+            Next
+            <ChevronRight className="h-5 w-5" />
+          </button>
+
+          <button
+            type="button"
+            onClick={load}
+            className="inline-flex items-center gap-2 rounded-2xl bg-sky-500/85 px-5 py-3 text-sm font-bold text-white
+                       shadow-[0_18px_45px_-25px_rgba(56,189,248,0.65)]
+                       transition hover:brightness-110 active:scale-[0.98]"
+            title="Refresh"
+          >
+            <RefreshCcw className="h-5 w-5" />
+            Refresh
           </button>
         </div>
       </div>
 
+      {/* Summary cards */}
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <SummaryCard title="Present" value={presentCount} tone="emerald" />
+        <SummaryCard title="Absent" value={absentCount} tone="rose" />
+        <SummaryCard title="Attendance %" value={`${percent}%`} tone="sky" />
+      </div>
+
       {/* Legend */}
       <div className="mt-4 flex flex-wrap gap-2 text-xs">
-        <Legend color="bg-green-100 border-green-200" text="P = Present" />
-        <Legend color="bg-red-100 border-red-200" text="A = Absent" />
-        <Legend color="bg-peacock-bg border-peacock-border" text="- = Not marked" />
+        <Legend text="Present" cls="border-emerald-200/30 bg-emerald-500/15 text-emerald-200" />
+        <Legend text="Absent" cls="border-rose-200/30 bg-rose-500/15 text-rose-200" />
+        <Legend text="Not marked" cls="border-white/10 bg-white/5 text-white/70" />
+        <Legend text="Today" cls="border-sky-200/30 bg-sky-500/15 text-sky-200" />
       </div>
 
       {/* Calendar */}
-      <div className="mt-4 border border-peacock-border rounded-2xl overflow-hidden">
-        <div className="grid grid-cols-7 bg-peacock-bg text-xs font-semibold text-gray-600">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-            <div key={d} className="p-3 border-r last:border-r-0 border-peacock-border">
+      <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+        <div className="grid grid-cols-7 border-b border-white/10 bg-slate-950/60 text-xs font-semibold text-white/60">
+          {weekdayLabels().map((d) => (
+            <div key={d} className="p-3 border-r last:border-r-0 border-white/10">
               {d}
             </div>
           ))}
         </div>
 
         {loading ? (
-          <div className="p-6 text-gray-600">Loading...</div>
-        ) : (
-          <div className="grid grid-cols-7">
-            {cells.map((c, idx) =>
-              c.type === "blank" ? (
-                <div
-                  key={idx}
-                  className="h-20 border-t border-r last:border-r-0 border-peacock-border bg-white"
-                />
-              ) : (
-                <DayCell key={idx} day={c.dayNum} status={c.status} />
-              )
-            )}
+          <div className="p-5">
+            <div className="grid grid-cols-7 gap-2">
+              {Array.from({ length: 28 }).map((_, i) => (
+                <div key={i} className="h-20 rounded-2xl bg-white/10 animate-pulse" />
+              ))}
+            </div>
           </div>
+        ) : (
+          <AnimatePresence mode="popLayout">
+            <motion.div
+              key={month}
+              initial={{ opacity: 0, y: 8, filter: "blur(6px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -8, filter: "blur(6px)" }}
+              className="grid grid-cols-7"
+            >
+              {cells.map((c) =>
+                c.type === "blank" ? (
+                  <div
+                    key={c.key}
+                    className="h-20 border-t border-r last:border-r-0 border-white/10 bg-transparent"
+                  />
+                ) : (
+                  <DayCell key={c.key} day={c.dayNum} status={c.status} isToday={c.isToday} />
+                )
+              )}
+            </motion.div>
+          </AnimatePresence>
         )}
       </div>
     </div>
   );
 }
 
-function DayCell({ day, status }) {
-  const badge =
-    status === "PRESENT"
-      ? { text: "P", cls: "bg-green-100 border-green-200 text-green-700" }
-      : status === "ABSENT"
-      ? { text: "A", cls: "bg-red-100 border-red-200 text-red-700" }
-      : { text: "-", cls: "bg-peacock-bg border-peacock-border text-gray-600" };
+function SummaryCard({ title, value, tone }) {
+  const toneCls =
+    tone === "emerald"
+      ? "border-emerald-200/20 bg-emerald-500/10"
+      : tone === "rose"
+      ? "border-rose-200/20 bg-rose-500/10"
+      : "border-sky-200/20 bg-sky-500/10";
 
   return (
-    <div className="h-20 border-t border-r last:border-r-0 border-peacock-border bg-white p-2">
+    <div className={`rounded-2xl border ${toneCls} p-4`}>
+      <div className="text-xs font-semibold text-white/60">{title}</div>
+      <div className="mt-1 text-2xl font-extrabold text-white">{value}</div>
+    </div>
+  );
+}
+
+function DayCell({ day, status, isToday }) {
+  const badge = status === "PRESENT" ? "P" : status === "ABSENT" ? "A" : "-";
+
+  return (
+    <div
+      className={[
+        "h-20 border-t border-r last:border-r-0 border-white/10 p-2 transition",
+        "hover:bg-white/5",
+        isToday ? "bg-sky-500/10" : "bg-transparent",
+      ].join(" ")}
+    >
       <div className="flex items-start justify-between">
-        <div className="text-sm font-semibold text-peacock-navy">{day}</div>
-        <div className={`px-2 py-0.5 rounded-lg border text-xs font-bold ${badge.cls}`}>
-          {badge.text}
+        <div className="text-sm font-bold text-white">{day}</div>
+        <div
+          className={[
+            "px-2 py-0.5 rounded-xl border text-xs font-extrabold",
+            statusPill(status),
+          ].join(" ")}
+          title={status || "Not marked"}
+        >
+          {badge}
         </div>
       </div>
     </div>
   );
 }
 
-function Legend({ color, text }) {
-  return (
-    <div className={`px-3 py-1 rounded-xl border ${color}`}>
-      {text}
-    </div>
-  );
+function Legend({ text, cls }) {
+  return <div className={`px-3 py-1 rounded-2xl border text-xs font-bold ${cls}`}>{text}</div>;
 }

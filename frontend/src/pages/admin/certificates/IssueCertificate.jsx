@@ -1,13 +1,28 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { adminGetStudents } from "../../../services/studentApi";
 import { adminIssueCertificate } from "../../../services/certificateApi";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  ArrowLeft,
+  Award,
+  CalendarDays,
+  FileText,
+  Search,
+  User,
+} from "lucide-react";
+
+const API_URL = import.meta?.env?.VITE_API_URL || "http://localhost:5000";
 
 export default function IssueCertificate() {
   const navigate = useNavigate();
   const [students, setStudents] = useState([]);
+  const [loadingStudents, setLoadingStudents] = useState(true);
+
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState("");
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
+  const [studentQuery, setStudentQuery] = useState("");
 
   const [form, setForm] = useState({
     studentId: "",
@@ -19,18 +34,56 @@ export default function IssueCertificate() {
     remarks: "",
   });
 
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, message, type });
+    window.clearTimeout(showToast._t);
+    showToast._t = window.setTimeout(
+      () => setToast({ show: false, message: "", type }),
+      2200
+    );
+  };
+
   useEffect(() => {
     (async () => {
-      const res = await adminGetStudents();
-      setStudents(res.data.data || []);
+      setLoadingStudents(true);
+      try {
+        const res = await adminGetStudents();
+        setStudents(res?.data?.data || []);
+      } catch (e) {
+        setStudents([]);
+        showToast("Failed to load students", "error");
+      } finally {
+        setLoadingStudents(false);
+      }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const onChange = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+  const selectedStudent = useMemo(
+    () => students.find((x) => x._id === form.studentId),
+    [students, form.studentId]
+  );
+
+  const filteredStudents = useMemo(() => {
+    const q = studentQuery.trim().toLowerCase();
+    if (!q) return students;
+
+    return students.filter((s) => {
+      const line = `${s.studentId || ""} ${s.name || ""} ${s.courseId?.title || ""}`.toLowerCase();
+      return line.includes(q);
+    });
+  }, [students, studentQuery]);
+
+  const onChange = (e) =>
+    setForm((p) => ({
+      ...p,
+      [e.target.name]: e.target.value,
+    }));
 
   const onPickStudent = (e) => {
     const studentId = e.target.value;
     const s = students.find((x) => x._id === studentId);
+
     setForm((p) => ({
       ...p,
       studentId,
@@ -38,82 +91,212 @@ export default function IssueCertificate() {
     }));
   };
 
+  const validate = () => {
+    if (!form.studentId) return "Please select a student.";
+    if (!form.startDate) return "Please select course start date.";
+    if (!form.endDate) return "Please select course end date.";
+    if (!form.issueDate) return "Please select issue date.";
+    return "";
+  };
+
   const onSubmit = async (e) => {
     e.preventDefault();
+
+    const err = validate();
+    if (err) {
+      showToast(err, "error");
+      return;
+    }
+
     setSaving(true);
-    setMsg("");
 
     try {
       const res = await adminIssueCertificate(form);
-      const cert = res.data.data;
-      setMsg("✅ Certificate generated!");
+      const cert = res?.data?.data;
 
-      // open pdf directly
-      window.open(`http://localhost:5000${cert.pdfUrl}`, "_blank");
+      showToast("Certificate generated successfully", "success");
+
+      if (cert?.pdfUrl) {
+        window.open(`${API_URL}${cert.pdfUrl}`, "_blank", "noreferrer");
+      }
 
       navigate("/admin/certificates", { replace: true });
-    } catch (err) {
-      setMsg(err?.response?.data?.message || "Failed to generate certificate");
+    } catch (error) {
+      showToast(error?.response?.data?.message || "Failed to generate certificate", "error");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-peacock-navy">Generate Certificate</h1>
+    <div className="p-4 sm:p-6">
+      {/* Toast */}
+      <AnimatePresence>
+        {toast.show && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, filter: "blur(6px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: -10, filter: "blur(6px)" }}
+            className="fixed right-4 top-4 z-50"
+          >
+            <div
+              className={[
+                "rounded-2xl border px-4 py-3 shadow-xl backdrop-blur-xl",
+                toast.type === "success"
+                  ? "border-emerald-200/40 bg-emerald-50/80 text-emerald-900"
+                  : "border-rose-200/40 bg-rose-50/80 text-rose-900",
+              ].join(" ")}
+            >
+              <div className="text-sm font-semibold">{toast.message}</div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-white">Generate Certificate</h1>
+          <p className="mt-1 text-sm text-white/60">
+            Select a student, set dates, and generate PDF certificate.
+          </p>
+        </div>
+
         <button
+          type="button"
           onClick={() => navigate(-1)}
-          className="px-4 py-2 rounded-xl border border-peacock-border bg-white"
+          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white/85
+                     hover:bg-white/10 transition active:scale-[0.98]"
         >
+          <ArrowLeft className="h-5 w-5" />
           Back
         </button>
       </div>
 
-      <form onSubmit={onSubmit} className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl border border-peacock-border p-6">
-          <label className="text-xs text-gray-500">Student</label>
-          <select
-            className="mt-1 w-full border rounded-xl p-3"
-            value={form.studentId}
-            onChange={onPickStudent}
-            required
-          >
-            <option value="">Select Student</option>
-            {students.map((s) => (
-              <option key={s._id} value={s._id}>
-                {s.studentId} - {s.name} ({s.courseId?.title || "Course"})
-              </option>
-            ))}
-          </select>
-
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <form onSubmit={onSubmit} className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Left: Form */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 backdrop-blur-xl">
+          {/* Student search + select */}
+          <div className="grid gap-3">
             <div>
-              <label className="text-xs text-gray-500">Start Date</label>
-              <input type="date" name="startDate" value={form.startDate} onChange={onChange}
-                className="mt-1 w-full border rounded-xl p-3" />
+              <label className="text-xs font-semibold text-white/60">Search Student</label>
+              <div className="relative mt-2">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
+                <input
+                  value={studentQuery}
+                  onChange={(e) => setStudentQuery(e.target.value)}
+                  placeholder="Type name / student id / course..."
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 pl-12 pr-4 py-3 text-sm text-white placeholder:text-white/35 outline-none
+                             focus:ring-2 focus:ring-sky-400/40 focus:border-sky-400/30 transition"
+                />
+              </div>
             </div>
+
             <div>
-              <label className="text-xs text-gray-500">End Date</label>
-              <input type="date" name="endDate" value={form.endDate} onChange={onChange}
-                className="mt-1 w-full border rounded-xl p-3" />
+              <label className="text-xs font-semibold text-white/60">Student</label>
+              <select
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none
+                           focus:ring-2 focus:ring-sky-400/40"
+                value={form.studentId}
+                onChange={onPickStudent}
+                required
+                disabled={loadingStudents}
+              >
+                <option value="">
+                  {loadingStudents ? "Loading students..." : "Select student"}
+                </option>
+                {filteredStudents.map((s) => (
+                  <option key={s._id} value={s._id}>
+                    {s.studentId} - {s.name} ({s.courseId?.title || "Course"})
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
-          <div className="mt-3">
-            <label className="text-xs text-gray-500">Issue Date</label>
-            <input type="date" name="issueDate" value={form.issueDate} onChange={onChange}
-              className="mt-1 w-full border rounded-xl p-3" />
+          {/* Selected student card */}
+          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="flex items-start gap-3">
+              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white/10 border border-white/10 text-white">
+                <User className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-bold text-white">
+                  {selectedStudent?.name || "No student selected"}
+                </div>
+                <div className="text-xs text-white/50">
+                  {selectedStudent?.studentId ? `ID: ${selectedStudent.studentId}` : "Select a student to preview details"}
+                </div>
+                <div className="mt-1 text-xs text-white/60">
+                  Course:{" "}
+                  <span className="text-white/80 font-semibold">
+                    {selectedStudent?.courseId?.title || "-"}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="mt-3">
-            <label className="text-xs text-gray-500">Performance</label>
+          {/* Dates */}
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="text-xs font-semibold text-white/60">Start Date</label>
+              <div className="relative mt-2">
+                <CalendarDays className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
+                <input
+                  type="date"
+                  name="startDate"
+                  value={form.startDate}
+                  onChange={onChange}
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 pl-12 pr-4 py-3 text-sm text-white outline-none
+                             focus:ring-2 focus:ring-sky-400/40"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-white/60">End Date</label>
+              <div className="relative mt-2">
+                <CalendarDays className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
+                <input
+                  type="date"
+                  name="endDate"
+                  value={form.endDate}
+                  onChange={onChange}
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 pl-12 pr-4 py-3 text-sm text-white outline-none
+                             focus:ring-2 focus:ring-sky-400/40"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <label className="text-xs font-semibold text-white/60">Issue Date</label>
+            <div className="relative mt-2">
+              <Award className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
+              <input
+                type="date"
+                name="issueDate"
+                value={form.issueDate}
+                onChange={onChange}
+                className="w-full rounded-2xl border border-white/10 bg-white/5 pl-12 pr-4 py-3 text-sm text-white outline-none
+                           focus:ring-2 focus:ring-sky-400/40"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Performance + remarks */}
+          <div className="mt-4">
+            <label className="text-xs font-semibold text-white/60">Performance</label>
             <select
               name="performance"
               value={form.performance}
               onChange={onChange}
-              className="mt-1 w-full border rounded-xl p-3"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none
+                         focus:ring-2 focus:ring-sky-400/40"
             >
               <option>Excellent</option>
               <option>Very Good</option>
@@ -122,40 +305,68 @@ export default function IssueCertificate() {
             </select>
           </div>
 
-          <div className="mt-3">
-            <label className="text-xs text-gray-500">Remarks</label>
+          <div className="mt-4">
+            <label className="text-xs font-semibold text-white/60">Remarks (optional)</label>
             <textarea
               name="remarks"
               value={form.remarks}
               onChange={onChange}
               rows={3}
-              className="mt-1 w-full border rounded-xl p-3"
-              placeholder="Optional remarks"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none
+                         focus:ring-2 focus:ring-sky-400/40"
+              placeholder="Add any remarks..."
             />
           </div>
 
+          {/* Submit */}
           <button
             disabled={saving}
-            className="mt-4 w-full bg-peacock-blue text-white rounded-xl p-3 font-semibold hover:opacity-90 disabled:opacity-60"
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sky-500/85 px-5 py-3 text-sm font-bold text-white
+                       shadow-[0_18px_45px_-25px_rgba(56,189,248,0.65)]
+                       transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
           >
+            <FileText className="h-5 w-5" />
             {saving ? "Generating..." : "Generate PDF Certificate"}
           </button>
-
-          {msg && (
-            <div className="mt-3 text-sm font-medium bg-peacock-bg border border-peacock-border rounded-xl p-3">
-              {msg}
-            </div>
-          )}
         </div>
 
-        <div className="bg-white rounded-2xl border border-peacock-border p-6">
-          <h2 className="font-semibold text-peacock-navy">How it works</h2>
-          <ul className="mt-3 text-sm text-gray-700 list-disc pl-6">
-            <li>Student photo is taken from student profile.</li>
-            <li>PDF gets saved in backend uploads folder.</li>
-            <li>QR code opens verify page with certificate number.</li>
-            <li>Admin can download anytime from certificates list.</li>
-          </ul>
+        {/* Right: Info panel */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 backdrop-blur-xl">
+          <h2 className="text-base font-bold text-white">How it works</h2>
+
+          <div className="mt-4 space-y-3 text-sm text-white/70">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="font-semibold text-white">Student data</div>
+              <div className="mt-1">
+                Student photo and course are taken from the student profile.
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="font-semibold text-white">PDF storage</div>
+              <div className="mt-1">
+                Generated PDF is stored in backend uploads folder and can be opened anytime.
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="font-semibold text-white">Verification</div>
+              <div className="mt-1">
+                QR code opens the verify page using the certificate number.
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="font-semibold text-white">Admin access</div>
+              <div className="mt-1">
+                Admin can download PDFs from the certificates list anytime.
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 text-xs text-white/45">
+            Tip: Fill course dates properly for accurate certificate printing.
+          </div>
         </div>
       </form>
     </div>
