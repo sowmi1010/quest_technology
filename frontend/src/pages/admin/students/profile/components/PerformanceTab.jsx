@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import {
   createPerformanceUpdate,
   deletePerformanceUpdate,
@@ -12,9 +11,11 @@ import {
   RefreshCcw,
   Save,
   Trash2,
-  X,
   Pencil,
 } from "lucide-react";
+import AdminToast from "../../../../../components/admin/common/AdminToast";
+import ConfirmModal from "../../../../../components/admin/common/ConfirmModal";
+import SummaryCard from "../../../../../components/admin/common/SummaryCard";
 
 const STATUS_OPTIONS = [
   { value: "IN_PROGRESS", label: "In Progress" },
@@ -42,42 +43,6 @@ function toInputDate(value) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
   return d.toISOString().slice(0, 10);
-}
-
-function Modal({ open, title, children, onClose }) {
-  return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="fixed inset-0 z-50 grid place-items-center p-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.98, filter: "blur(6px)" }}
-            animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: 10, scale: 0.98, filter: "blur(6px)" }}
-            className="relative w-full max-w-md rounded-2xl border border-white/10 bg-slate-950/80 p-5 shadow-2xl backdrop-blur-xl"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="text-base font-bold text-white">{title}</div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="mt-4">{children}</div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
 }
 
 export default function PerformanceTab({ studentId }) {
@@ -229,27 +194,12 @@ export default function PerformanceTab({ studentId }) {
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 backdrop-blur-xl">
-      <AnimatePresence>
-        {toast.show && (
-          <motion.div
-            initial={{ opacity: 0, y: -10, filter: "blur(6px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: -10, filter: "blur(6px)" }}
-            className="fixed right-4 top-4 z-50"
-          >
-            <div
-              className={[
-                "rounded-2xl border px-4 py-3 shadow-xl backdrop-blur-xl",
-                toast.type === "success"
-                  ? "border-emerald-200/40 bg-emerald-50/80 text-emerald-900"
-                  : "border-rose-200/40 bg-rose-50/80 text-rose-900",
-              ].join(" ")}
-            >
-              <div className="text-sm font-semibold">{toast.message}</div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <AdminToast
+        show={toast.show}
+        type={toast.type}
+        message={toast.message}
+        onClose={() => setToast({ show: false, message: "", type: toast.type })}
+      />
 
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="flex items-start gap-3">
@@ -435,7 +385,7 @@ export default function PerformanceTab({ studentId }) {
         )}
       </div>
 
-      <Modal
+      <ConfirmModal
         open={confirmDel.open}
         title="Delete performance update?"
         onClose={() => setConfirmDel({ open: false, id: "", toolName: "" })}
@@ -462,23 +412,7 @@ export default function PerformanceTab({ studentId }) {
             Delete
           </button>
         </div>
-      </Modal>
-    </div>
-  );
-}
-
-function SummaryCard({ title, value, tone }) {
-  const toneCls =
-    tone === "emerald"
-      ? "border-emerald-200/20 bg-emerald-500/10"
-      : tone === "amber"
-      ? "border-amber-200/20 bg-amber-500/10"
-      : "border-sky-200/20 bg-sky-500/10";
-
-  return (
-    <div className={`rounded-2xl border ${toneCls} p-4`}>
-      <div className="text-xs font-semibold text-white/60">{title}</div>
-      <div className="mt-1 text-2xl font-extrabold text-white">{value}</div>
+      </ConfirmModal>
     </div>
   );
 }

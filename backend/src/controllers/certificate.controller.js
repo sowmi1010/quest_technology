@@ -1,4 +1,5 @@
 import path from "path";
+import fs from "fs";
 import Certificate from "../models/Certificate.js";
 import Student from "../models/Student.js";
 import Course from "../models/Course.js";
@@ -85,4 +86,25 @@ export const verifyCertificate = asyncHandler(async (req, res) => {
   if (!cert) return res.status(404).json({ ok: false, message: "Invalid certificate" });
 
   res.json({ ok: true, data: cert });
+});
+
+export const deleteCertificate = asyncHandler(async (req, res) => {
+  const cert = await Certificate.findById(req.params.id);
+  if (!cert) return res.status(404).json({ ok: false, message: "Certificate not found" });
+
+  if (cert.pdfUrl) {
+    const relativePath = String(cert.pdfUrl).replace(/^\/+/, "");
+    const absPath = path.join(process.cwd(), relativePath);
+
+    if (fs.existsSync(absPath)) {
+      try {
+        fs.unlinkSync(absPath);
+      } catch {
+        // Ignore filesystem delete errors and continue db cleanup.
+      }
+    }
+  }
+
+  await Certificate.findByIdAndDelete(req.params.id);
+  res.json({ ok: true, message: "Certificate deleted" });
 });

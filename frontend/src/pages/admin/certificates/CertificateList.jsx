@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { adminListCertificates } from "../../../services/certificateApi";
-import { FileText, Search, Copy, Check } from "lucide-react";
+import { adminDeleteCertificate, adminListCertificates } from "../../../services/certificateApi";
+import { FileText, Search, Copy, Check, Trash2 } from "lucide-react";
+import AdminToast from "../../../components/admin/common/AdminToast";
+import ConfirmModal from "../../../components/admin/common/ConfirmModal";
 
 const API_URL = import.meta?.env?.VITE_API_URL || "http://localhost:5000";
 
@@ -16,23 +18,39 @@ function formatDate(d) {
 export default function CertificateList() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
 
   const [query, setQuery] = useState("");
   const [copiedId, setCopiedId] = useState("");
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const [confirmDel, setConfirmDel] = useState({ open: false, id: "", certNo: "", studentName: "" });
+
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, message, type });
+    window.clearTimeout(showToast._t);
+    showToast._t = window.setTimeout(
+      () => setToast({ show: false, message: "", type }),
+      2200
+    );
+  };
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await adminListCertificates();
+      const list = res?.data?.data || [];
+      list.sort((a, b) => new Date(b.issueDate || 0) - new Date(a.issueDate || 0));
+      setRows(list);
+    } catch {
+      setRows([]);
+      showToast("Failed to load certificates", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const res = await adminListCertificates();
-        const list = res?.data?.data || [];
-        // sort latest first
-        list.sort((a, b) => new Date(b.issueDate || 0) - new Date(a.issueDate || 0));
-        setRows(list);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    load();
   }, []);
 
   const filtered = useMemo(() => {
@@ -57,8 +75,40 @@ export default function CertificateList() {
     }
   };
 
+  const askDelete = (cert) => {
+    setConfirmDel({
+      open: true,
+      id: cert._id,
+      certNo: cert.certNo || "",
+      studentName: cert.studentId?.name || "",
+    });
+  };
+
+  const doDelete = async () => {
+    if (!confirmDel.id) return;
+
+    setBusy(true);
+    try {
+      await adminDeleteCertificate(confirmDel.id);
+      showToast("Certificate deleted", "success");
+      setConfirmDel({ open: false, id: "", certNo: "", studentName: "" });
+      await load();
+    } catch (error) {
+      showToast(error?.response?.data?.message || "Failed to delete certificate", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="p-4 sm:p-6">
+      <AdminToast
+        show={toast.show}
+        type={toast.type}
+        message={toast.message}
+        onClose={() => setToast({ show: false, message: "", type: toast.type })}
+      />
+
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -112,7 +162,7 @@ export default function CertificateList() {
                   <th className="p-4 text-left font-semibold text-white/70">Student</th>
                   <th className="p-4 text-left font-semibold text-white/70">Course</th>
                   <th className="p-4 text-left font-semibold text-white/70">Issued</th>
-                  <th className="p-4 text-left font-semibold text-white/70">PDF</th>
+                  <th className="p-4 text-left font-semibold text-white/70">Actions</th>
                 </tr>
               </thead>
 
@@ -155,20 +205,32 @@ export default function CertificateList() {
                     <td className="p-4 text-white/80">{formatDate(c.issueDate)}</td>
 
                     <td className="p-4">
-                      {c.pdfUrl ? (
-                        <a
-                          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 font-bold text-white/85
+                      <div className="flex flex-wrap gap-2">
+                        {c.pdfUrl ? (
+                          <a
+                            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 font-bold text-white/85
                                      hover:bg-white/10 transition"
-                          href={`${API_URL}${c.pdfUrl}`}
-                          target="_blank"
-                          rel="noreferrer"
+                            href={`${API_URL}${c.pdfUrl}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <FileText className="h-5 w-5" />
+                            Open PDF
+                          </a>
+                        ) : (
+                          <span className="text-white/50">-</span>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => askDelete(c)}
+                          className="inline-flex items-center gap-2 rounded-2xl border border-rose-200/20 bg-rose-500/10 px-4 py-2 font-bold text-rose-200
+                                     hover:bg-rose-500/15 transition"
                         >
-                          <FileText className="h-5 w-5" />
-                          Open PDF
-                        </a>
-                      ) : (
-                        <span className="text-white/50">-</span>
-                      )}
+                          <Trash2 className="h-5 w-5" />
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -185,6 +247,47 @@ export default function CertificateList() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        open={confirmDel.open}
+        title="Delete certificate?"
+        onClose={() => setConfirmDel({ open: false, id: "", certNo: "", studentName: "" })}
+      >
+        <div className="text-sm text-white/70">
+          This will permanently delete the certificate record and PDF file.
+        </div>
+
+        <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/85">
+          <div className="flex items-center justify-between">
+            <span className="text-white/55">Certificate</span>
+            <span className="font-extrabold text-white">{confirmDel.certNo || "-"}</span>
+          </div>
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-white/55">Student</span>
+            <span className="font-extrabold text-white">{confirmDel.studentName || "-"}</span>
+          </div>
+        </div>
+
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setConfirmDel({ open: false, id: "", certNo: "", studentName: "" })}
+            className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white/85 hover:bg-white/10 disabled:opacity-60"
+            disabled={busy}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            onClick={doDelete}
+            className="flex-1 rounded-2xl bg-rose-500/85 px-4 py-3 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-60"
+            disabled={busy}
+          >
+            {busy ? "Deleting..." : "Delete"}
+          </button>
+        </div>
+      </ConfirmModal>
     </div>
   );
 }

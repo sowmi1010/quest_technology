@@ -15,6 +15,7 @@ import {
   formatINR,
   getPublicImageUrl,
 } from "../../utils/publicUi";
+import PublicSeo from "../../components/seo/PublicSeo";
 
 /* ----------------------------- UI Helpers ----------------------------- */
 
@@ -131,6 +132,13 @@ export default function Courses() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+      <PublicSeo
+        title="Courses - IT, Accounts, Mechanical and Tuition Programs"
+        description="Browse all Quest Technology courses by category, duration, and fee. Compare programs and choose the right learning path for your career goals."
+        keywords="Quest Technology courses, IT courses, accounts courses, mechanical design courses, tuition programs"
+        canonicalPath="/courses"
+      />
+
       {/* Hero */}
       <div className="relative overflow-hidden rounded-3xl border border-peacock-border/60 bg-white/70 p-6 shadow-soft backdrop-blur-xl md:p-8 dark:bg-slate-950/35 dark:border-white/10">
         {/* glows */}

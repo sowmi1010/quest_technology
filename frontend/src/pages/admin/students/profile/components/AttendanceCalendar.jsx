@@ -5,6 +5,7 @@ import {
   getStudentAttendanceRange,
   setStudentAttendanceByDate,
 } from "../../../../../services/attendanceApi";
+import SummaryCard from "../../../../../components/admin/common/SummaryCard";
 
 function monthToRange(monthStr) {
   const [y, m] = monthStr.split("-").map(Number);
@@ -268,22 +269,6 @@ export default function AttendanceCalendar({ studentId }) {
           </AnimatePresence>
         )}
       </div>
-    </div>
-  );
-}
-
-function SummaryCard({ title, value, tone }) {
-  const toneCls =
-    tone === "emerald"
-      ? "border-emerald-200/20 bg-emerald-500/10"
-      : tone === "rose"
-      ? "border-rose-200/20 bg-rose-500/10"
-      : "border-sky-200/20 bg-sky-500/10";
-
-  return (
-    <div className={`rounded-2xl border ${toneCls} p-4`}>
-      <div className="text-xs font-semibold text-white/60">{title}</div>
-      <div className="mt-1 text-2xl font-extrabold text-white">{value}</div>
     </div>
   );
 }

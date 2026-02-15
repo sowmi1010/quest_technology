@@ -25,6 +25,7 @@ import {
 } from "../../utils/publicUi";
 import Testimonials from "./components/Testimonials";
 import FounderVision from "./components/FounderVision";
+import PublicSeo from "../../components/seo/PublicSeo";
 
 const highlights = [
   {
@@ -123,6 +124,13 @@ export default function Home() {
 
   return (
     <div className="pb-10">
+      <PublicSeo
+        title="Quest Technology - IT, Accounts, Mechanical and Tuition Training"
+        description="Join Quest Technology for practical IT, accounts, mechanical, tuition, and exam preparation programs with mentor support and career guidance."
+        keywords="Quest Technology, IT training, accounts training, mechanical training, tuition center, JEE NEET coaching, skill development"
+        canonicalPath="/"
+      />
+
       {/* HERO */}
       <section className="mx-auto max-w-7xl px-4 pb-8 pt-10 sm:px-6">
         <div className="grid gap-8 lg:grid-cols-[1.25fr_0.75fr]">

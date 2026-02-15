@@ -18,6 +18,7 @@ import {
   formatINR,
   getPublicImageUrl,
 } from "../../utils/publicUi";
+import PublicSeo from "../../components/seo/PublicSeo";
 
 function Skeleton() {
   return (
@@ -56,12 +57,74 @@ export default function CourseDetails() {
 
   const img = useMemo(() => getPublicImageUrl(course?.imageUrl), [course]);
   const syllabus = useMemo(() => (Array.isArray(course?.syllabus) ? course.syllabus : []), [course]);
+  const seoTitle = useMemo(() => {
+    if (!course?.title) return "Course Details";
+    return `${course.title} Course`;
+  }, [course?.title]);
 
-  if (loading) return <Skeleton />;
+  const seoDescription = useMemo(() => {
+    if (!course?.title) {
+      return "View detailed course information, syllabus, fees, and installment options at Quest Technology.";
+    }
+
+    const firstTopics = Array.isArray(course.syllabus)
+      ? course.syllabus.slice(0, 3).filter(Boolean).join(", ")
+      : "";
+
+    if (firstTopics) {
+      return `${course.title} at Quest Technology. Learn ${firstTopics}. Check duration, fee, and admission details.`;
+    }
+
+    return `${course.title} at Quest Technology with practical training, flexible batches, and admission support.`;
+  }, [course]);
+
+  const seoKeywords = useMemo(() => {
+    const category = course?.categoryId?.name ? `${course.categoryId.name}, ` : "";
+    const title = course?.title ? `${course.title}, ` : "";
+    return `${title}${category}Quest Technology courses, skill training`;
+  }, [course?.categoryId?.name, course?.title]);
+
+  const courseSchema = useMemo(() => {
+    if (!course?.title) return null;
+
+    return {
+      "@context": "https://schema.org",
+      "@type": "Course",
+      name: course.title,
+      description: seoDescription,
+      provider: {
+        "@type": "Organization",
+        name: "Quest Technology",
+      },
+      courseMode: "onsite",
+    };
+  }, [course?.title, seoDescription]);
+
+  if (loading) {
+    return (
+      <>
+        <PublicSeo
+          title={seoTitle}
+          description={seoDescription}
+          keywords={seoKeywords}
+          canonicalPath={`/courses/${id}`}
+        />
+        <Skeleton />
+      </>
+    );
+  }
 
   if (!course) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        <PublicSeo
+          title={seoTitle}
+          description={seoDescription}
+          keywords={seoKeywords}
+          canonicalPath={`/courses/${id}`}
+          robots="noindex,follow"
+        />
+
         <div className="rounded-3xl border border-peacock-border/60 bg-white/70 p-6 shadow-soft backdrop-blur-xl dark:bg-slate-950/35 dark:border-white/10">
           <div className="text-sm text-peacock-muted dark:text-white/60">Course not found.</div>
           <Link
@@ -78,6 +141,16 @@ export default function CourseDetails() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <PublicSeo
+        title={seoTitle}
+        description={seoDescription}
+        keywords={seoKeywords}
+        canonicalPath={`/courses/${id}`}
+        image={img || "/logo.jpeg"}
+        type="article"
+        jsonLd={courseSchema}
+      />
+
       {/* Back */}
       <div className="mb-5">
         <Link

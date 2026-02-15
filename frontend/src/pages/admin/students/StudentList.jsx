@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Search,
   Plus,
@@ -17,6 +17,9 @@ import {
 } from "lucide-react";
 
 import { adminDeleteStudent, adminGetStudents } from "../../../services/studentApi";
+import AdminToast from "../../../components/admin/common/AdminToast";
+import ConfirmModal from "../../../components/admin/common/ConfirmModal";
+import SummaryCard from "../../../components/admin/common/SummaryCard";
 
 const API_URL = import.meta?.env?.VITE_API_URL || "http://localhost:5000";
 
@@ -47,99 +50,6 @@ function studentGroupPill(group) {
   if (group === "EXISTING") return "border-amber-200/20 bg-amber-500/10 text-amber-200";
   if (group === "COMPLETED") return "border-emerald-200/20 bg-emerald-500/10 text-emerald-200";
   return "border-white/10 bg-white/5 text-white/80";
-}
-
-function Modal({ open, title, children, onClose }) {
-  return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="fixed inset-0 z-50 grid place-items-center p-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.98, filter: "blur(6px)" }}
-            animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: 10, scale: 0.98, filter: "blur(6px)" }}
-            className="relative w-full max-w-md rounded-2xl border border-white/10 bg-slate-950/80 p-5 shadow-2xl backdrop-blur-xl"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="text-base font-extrabold text-white">{title}</div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="mt-4">{children}</div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
-function Toast({ show, type, message, onClose }) {
-  return (
-    <AnimatePresence>
-      {show && (
-        <motion.div
-          className="fixed right-4 top-4 z-50"
-          initial={{ opacity: 0, y: -10, filter: "blur(6px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          exit={{ opacity: 0, y: -10, filter: "blur(6px)" }}
-        >
-          <div
-            className={clsx(
-              "rounded-2xl border px-4 py-3 shadow-xl backdrop-blur-xl",
-              type === "success"
-                ? "border-emerald-200/40 bg-emerald-50/80 text-emerald-900"
-                : "border-rose-200/40 bg-rose-50/80 text-rose-900"
-            )}
-          >
-            <div className="flex items-start gap-3">
-              <div className="text-sm font-semibold">{message}</div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="ml-auto grid h-8 w-8 place-items-center rounded-xl border border-black/10 bg-black/5 hover:bg-black/10"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
-function StatCard({ icon: Icon, label, value, tone = "sky" }) {
-  const toneCls =
-    tone === "emerald"
-      ? "border-emerald-200/20 bg-emerald-500/10"
-      : tone === "rose"
-      ? "border-rose-200/20 bg-rose-500/10"
-      : "border-sky-200/20 bg-sky-500/10";
-
-  return (
-    <div className={clsx("rounded-2xl border p-4", toneCls)}>
-      <div className="flex items-center gap-3">
-        <div className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5">
-          <Icon className="h-5 w-5 text-white/75" />
-        </div>
-        <div>
-          <div className="text-xs font-semibold text-white/55">{label}</div>
-          <div className="mt-0.5 text-xl font-extrabold text-white">{value}</div>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export default function StudentList() {
@@ -270,7 +180,7 @@ export default function StudentList() {
 
   return (
     <div className="p-4 sm:p-6">
-      <Toast
+      <AdminToast
         show={toast.show}
         type={toast.type}
         message={toast.message}
@@ -325,10 +235,10 @@ export default function StudentList() {
 
         {/* Stats */}
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard icon={Users} label="Total" value={stats.total} tone="sky" />
-          <StatCard icon={Plus} label="New" value={stats.newStudents} tone="sky" />
-          <StatCard icon={BadgeCheck} label="Existing" value={stats.existingStudents} tone="emerald" />
-          <StatCard icon={BadgeX} label="Completed" value={stats.completedStudents} tone="rose" />
+          <SummaryCard icon={Users} title="Total" value={stats.total} tone="sky" />
+          <SummaryCard icon={Plus} title="New" value={stats.newStudents} tone="sky" />
+          <SummaryCard icon={BadgeCheck} title="Existing" value={stats.existingStudents} tone="emerald" />
+          <SummaryCard icon={BadgeX} title="Completed" value={stats.completedStudents} tone="rose" />
         </div>
 
         <div className="mt-4">
@@ -563,7 +473,7 @@ export default function StudentList() {
       </div>
 
       {/* Delete Modal */}
-      <Modal
+      <ConfirmModal
         open={del.open}
         title="Delete student?"
         onClose={() => setDel({ open: false, id: "", name: "", studentId: "" })}
@@ -603,7 +513,7 @@ export default function StudentList() {
             {busy ? "Deleting..." : "Delete"}
           </button>
         </div>
-      </Modal>
+      </ConfirmModal>
     </div>
   );
 }

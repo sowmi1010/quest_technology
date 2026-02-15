@@ -10,6 +10,7 @@ import {
   IconPhone,
 } from "../../components/ui/PublicIcons";
 import { PUBLIC_CONTACT } from "../../utils/publicUi";
+import PublicSeo from "../../components/seo/PublicSeo";
 
 const initialForm = {
   name: "",
@@ -81,6 +82,13 @@ export default function Enquiry() {
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+      <PublicSeo
+        title="Enquiry and Admission Support"
+        description="Contact Quest Technology admissions for course counselling, batch timings, fee plans, and enrollment support."
+        keywords="Quest Technology enquiry, admission support, course counselling, training institute contact"
+        canonicalPath="/enquiry"
+      />
+
       {/* Top header */}
       <div className="mb-6">
         <p className="inline-flex items-center rounded-full border border-peacock-border/60 bg-peacock-bg/70 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.18em] text-peacock-muted dark:border-white/10 dark:bg-white/5 dark:text-white/60">

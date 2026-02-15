@@ -9,6 +9,7 @@ import {
 import { publicListGallery } from "../../services/galleryApi";
 import { getPublicImageUrl } from "../../utils/publicUi";
 import { GALLERY_CATEGORY_OPTIONS, getGalleryCategoryLabel } from "../../utils/galleryCategories";
+import PublicSeo from "../../components/seo/PublicSeo";
 
 const ALL_CATEGORY = "ALL";
 
@@ -69,6 +70,13 @@ export default function Gallery() {
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+      <PublicSeo
+        title="Gallery - Workshops, Seminars and Events"
+        description="View Quest Technology gallery featuring workshops, seminars, college hands-on training sessions, and events."
+        keywords="Quest Technology gallery, workshops photos, seminars photos, college training events"
+        canonicalPath="/gallery"
+      />
+
       <div className="relative overflow-hidden rounded-3xl border border-peacock-border/60 bg-white/70 p-6 shadow-soft backdrop-blur-xl md:p-8 dark:border-white/10 dark:bg-slate-950/35">
         <div className="pointer-events-none absolute -left-24 -top-24 h-64 w-64 rounded-full bg-peacock-blue/15 blur-3xl" />
         <div className="pointer-events-none absolute -right-24 -bottom-24 h-64 w-64 rounded-full bg-peacock-green/15 blur-3xl" />
