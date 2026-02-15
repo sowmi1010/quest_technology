@@ -3,11 +3,12 @@ import {
   LayoutDashboard,
   PhoneCall,
   GraduationCap,
+  Wallet,
   BookOpen,
-  CheckSquare,
   CalendarDays,
   Star,
   Award,
+  Images,
   LogOut,
 } from "lucide-react";
 
@@ -24,9 +25,10 @@ export default function Sidebar({ collapsed = false }) {
     { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { to: "/admin/enquiries", label: "Enquiries", icon: PhoneCall },
     { to: "/admin/students", label: "Students", icon: GraduationCap },
+    { to: "/admin/payments", label: "Payments", icon: Wallet },
     { to: "/admin/courses", label: "Courses", icon: BookOpen },
-    { to: "/admin/attendance", label: "Attendance", icon: CheckSquare },
     { to: "/admin/attendance/report", label: "Attendance Report", icon: CalendarDays },
+    { to: "/admin/gallery", label: "Gallery", icon: Images },
     { to: "/admin/feedback", label: "Feedback", icon: Star },
     { to: "/admin/certificates", label: "Certificates", icon: Award },
   ];

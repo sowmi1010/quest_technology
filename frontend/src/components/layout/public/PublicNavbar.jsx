@@ -12,6 +12,7 @@ import {
 const navItems = [
   { to: "/", label: "Home" },
   { to: "/courses", label: "Courses" },
+  { to: "/gallery", label: "Gallery" },
   { to: "/enquiry", label: "Enquiry" },
 ];
 

@@ -7,20 +7,20 @@ import {
   User,
   CalendarDays,
   CreditCard,
-  WalletCards,
+  Activity,
 } from "lucide-react";
 
 import { adminGetStudent } from "../../../../services/studentApi";
 import AttendanceCalendar from "./components/AttendanceCalendar";
 import PaymentsTab from "./components/PaymentsTab";
-import InstallmentScheduleTab from "./components/InstallmentScheduleTab";
+import PerformanceTab from "./components/PerformanceTab";
 
 const API_URL = import.meta?.env?.VITE_API_URL || "http://localhost:5000";
 
 const TABS = [
   { key: "attendance", label: "Attendance", icon: CalendarDays },
   { key: "payments", label: "Payments", icon: CreditCard },
-  { key: "schedule", label: "Schedule", icon: WalletCards },
+  { key: "performance", label: "Performance", icon: Activity },
   { key: "overview", label: "Overview", icon: User },
 ];
 
@@ -172,7 +172,7 @@ export default function StudentProfile() {
           >
             {tab === "attendance" && <AttendanceCalendar studentId={student._id} />}
             {tab === "payments" && <PaymentsTab studentId={student._id} />}
-            {tab === "schedule" && <InstallmentScheduleTab studentId={student._id} />}
+            {tab === "performance" && <PerformanceTab studentId={student._id} />}
             {tab === "overview" && <Overview student={student} />}
           </motion.div>
         </AnimatePresence>

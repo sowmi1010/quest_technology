@@ -14,6 +14,7 @@ import {
   IconMessageCircle,
   IconPhone,
   IconSpark,
+  IconUsers,
   IconWrench,
 } from "../../components/ui/PublicIcons";
 import {
@@ -23,6 +24,7 @@ import {
   getPublicImageUrl,
 } from "../../utils/publicUi";
 import Testimonials from "./components/Testimonials";
+import FounderVision from "./components/FounderVision";
 
 const highlights = [
   {
@@ -67,11 +69,37 @@ const assurances = [
   "Placement and interview guidance",
 ];
 
-const impactStats = [
-  { value: "2500+", label: "Students Trained" },
-  { value: "35+", label: "Industry Modules" },
-  { value: "1200+", label: "Career Placements" },
-  { value: "4.8/5", label: "Learner Satisfaction" },
+const keyAchievements = [
+  {
+    value: "18+",
+    label: "Years of Excellence",
+    icon: IconSpark,
+    iconTone: "text-peacock-blue dark:text-sky-200",
+  },
+  {
+    value: "13+",
+    label: "College Collaborations",
+    icon: IconGraduationCap,
+    iconTone: "text-peacock-green dark:text-emerald-200",
+  },
+  {
+    value: "500+",
+    label: "Workshops",
+    icon: IconLaptop,
+    iconTone: "text-peacock-blue dark:text-sky-200",
+  },
+  {
+    value: "200+",
+    label: "Seminars",
+    icon: IconCalendar,
+    iconTone: "text-peacock-green dark:text-emerald-200",
+  },
+  {
+    value: "1000+",
+    label: "Students Learning in Academy",
+    icon: IconUsers,
+    iconTone: "text-peacock-blue dark:text-sky-200",
+  },
 ];
 
 export default function Home() {
@@ -148,18 +176,34 @@ export default function Home() {
               ))}
             </div>
 
-            <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-4">
-              {impactStats.map((item) => (
-                <article
-                  key={item.label}
-                  className="rounded-2xl border border-peacock-border/60 bg-white/50 px-4 py-3 text-center transition hover:-translate-y-0.5 hover:border-peacock-blue/40 dark:border-white/10 dark:bg-white/5"
-                >
-                  <p className="text-lg font-extrabold text-peacock-navy dark:text-white">{item.value}</p>
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-peacock-muted dark:text-white/60">
-                    {item.label}
-                  </p>
-                </article>
-              ))}
+            <div className="mt-8 rounded-3xl border border-peacock-border/60 bg-white/55 p-4 dark:border-white/10 dark:bg-white/5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-peacock-muted dark:text-white/60">
+                  Key Achievements
+                </p>
+                <span className="rounded-full bg-gradient-to-r from-peacock-blue/15 to-peacock-green/15 px-3 py-1 text-[11px] font-bold text-peacock-navy dark:text-white/75">
+                  Proven Track Record
+                </span>
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                {keyAchievements.map((item, index) => (
+                  <article
+                    key={item.label}
+                    className="group relative overflow-hidden rounded-2xl border border-peacock-border/60 bg-white/70 px-4 py-3 transition duration-300 hover:-translate-y-1 hover:border-peacock-blue/45 dark:border-white/10 dark:bg-white/5"
+                    style={{ animationDelay: `${index * 80}ms` }}
+                  >
+                    <div className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-gradient-to-br from-peacock-blue/15 to-peacock-green/15 opacity-0 blur-2xl transition duration-300 group-hover:opacity-100" />
+                    <span className="inline-flex rounded-xl border border-peacock-border/60 bg-peacock-bg/70 p-2 dark:border-white/10 dark:bg-white/10">
+                      <item.icon className={`h-4 w-4 ${item.iconTone}`} />
+                    </span>
+                    <p className="mt-3 text-lg font-extrabold text-peacock-navy dark:text-white">{item.value}</p>
+                    <p className="mt-1 text-xs font-semibold leading-snug text-peacock-muted dark:text-white/65">
+                      {item.label}
+                    </p>
+                  </article>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -352,6 +396,7 @@ export default function Home() {
       </section>
 
       <Testimonials />
+      <FounderVision />
     </div>
   );
 }

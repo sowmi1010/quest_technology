@@ -14,5 +14,8 @@ export const getAttendanceReport = (start, end, batchType) =>
     params: { start, end, batchType: batchType || undefined },
   });
 
-  export const getStudentAttendanceRange = (studentId, start, end) =>
+export const getStudentAttendanceRange = (studentId, start, end) =>
   api.get(`/attendance/student/${studentId}`, { params: { start, end } });
+
+export const setStudentAttendanceByDate = (studentId, payload) =>
+  api.patch(`/attendance/student/${studentId}`, payload);

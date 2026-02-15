@@ -122,7 +122,7 @@ export default function EnquiryList() {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="w-full appearance-none rounded-2xl border border-white/10 bg-white/5 pl-12 pr-10 py-3 text-sm text-white outline-none
-                         focus:ring-2 focus:ring-sky-400/40"
+                         focus:ring-2 focus:ring-sky-400/40 [&>option]:bg-white [&>option]:text-slate-900"
             >
               <option value="all">Status: All</option>
               {uniqueStatuses.map((s) => (
@@ -137,7 +137,7 @@ export default function EnquiryList() {
             value={batchFilter}
             onChange={(e) => setBatchFilter(e.target.value)}
             className="w-full appearance-none rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none
-                       focus:ring-2 focus:ring-sky-400/40"
+                       focus:ring-2 focus:ring-sky-400/40 [&>option]:bg-white [&>option]:text-slate-900"
           >
             <option value="all">Batch: All</option>
             {uniqueBatches.map((b) => (
@@ -151,7 +151,7 @@ export default function EnquiryList() {
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
             className="w-full appearance-none rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none
-                       focus:ring-2 focus:ring-sky-400/40"
+                       focus:ring-2 focus:ring-sky-400/40 [&>option]:bg-white [&>option]:text-slate-900"
           >
             <option value="latest">Sort: Latest</option>
             <option value="oldest">Sort: Oldest</option>

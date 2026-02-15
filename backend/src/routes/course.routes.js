@@ -8,6 +8,7 @@ import {
   listAdminCourses,
   getCourse,
   updateCourse,
+  deleteCourse,
 } from "../controllers/course.controller.js";
 
 const router = express.Router();
@@ -21,5 +22,6 @@ router.get("/", adminProtect, listAdminCourses);
 router.post("/", adminProtect, uploadCourseImage, createCourse);
 router.get("/:id", adminProtect, getCourse);
 router.patch("/:id", adminProtect, uploadCourseImage, updateCourse);
+router.delete("/:id", adminProtect, deleteCourse);
 
 export default router;

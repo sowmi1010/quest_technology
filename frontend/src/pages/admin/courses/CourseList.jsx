@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { adminGetCourses } from "../../../services/courseApi";
-import { RefreshCcw, Search, Filter, Plus, Pencil } from "lucide-react";
+import { adminDeleteCourse, adminGetCourses } from "../../../services/courseApi";
+import { RefreshCcw, Search, Filter, Plus, Pencil, Trash2 } from "lucide-react";
 
 const API_URL = import.meta?.env?.VITE_API_URL || "http://localhost:5000";
 
@@ -14,6 +14,7 @@ function money(v) {
 export default function CourseList() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState("");
 
   const [query, setQuery] = useState("");
   const [publicFilter, setPublicFilter] = useState("all"); // all | yes | no
@@ -32,6 +33,24 @@ export default function CourseList() {
   useEffect(() => {
     load();
   }, []);
+
+  const onDelete = async (course) => {
+    const ok = window.confirm(
+      `Delete course "${course.title}"?\n\nThis cannot be undone.`
+    );
+    if (!ok) return;
+
+    setBusyId(course._id);
+    try {
+      await adminDeleteCourse(course._id);
+      await load();
+    } catch (err) {
+      const msg = err?.response?.data?.message || "Failed to delete course";
+      window.alert(msg);
+    } finally {
+      setBusyId("");
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -116,7 +135,7 @@ export default function CourseList() {
               value={publicFilter}
               onChange={(e) => setPublicFilter(e.target.value)}
               className="w-full appearance-none rounded-2xl border border-white/10 bg-white/5 pl-12 pr-10 py-3 text-sm text-white outline-none
-                         focus:ring-2 focus:ring-sky-400/40"
+                         focus:ring-2 focus:ring-sky-400/40 [&>option]:bg-white [&>option]:text-slate-900"
             >
               <option value="all">Public: All</option>
               <option value="yes">Public: Yes</option>
@@ -128,7 +147,7 @@ export default function CourseList() {
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
             className="w-full appearance-none rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none
-                       focus:ring-2 focus:ring-sky-400/40"
+                       focus:ring-2 focus:ring-sky-400/40 [&>option]:bg-white [&>option]:text-slate-900"
           >
             <option value="latest">Sort: Latest</option>
             <option value="fee">Sort: Fee (high → low)</option>
@@ -207,14 +226,27 @@ export default function CourseList() {
                     </td>
 
                     <td className="p-4">
-                      <Link
-                        to={`/admin/courses/${c._id}/edit`}
-                        className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-white/85
-                                   hover:bg-white/10 transition active:scale-[0.98]"
-                      >
-                        <Pencil className="h-4 w-4" />
-                        Edit
-                      </Link>
+                      <div className="flex flex-wrap gap-2">
+                        <Link
+                          to={`/admin/courses/${c._id}`}
+                          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-white/85
+                                     hover:bg-white/10 transition active:scale-[0.98]"
+                        >
+                          <Pencil className="h-4 w-4" />
+                          Edit
+                        </Link>
+
+                        <button
+                          type="button"
+                          onClick={() => onDelete(c)}
+                          disabled={busyId === c._id}
+                          className="inline-flex items-center gap-2 rounded-2xl border border-rose-200/20 bg-rose-500/10 px-4 py-2 text-sm font-bold text-rose-200
+                                     hover:bg-rose-500/15 transition active:scale-[0.98] disabled:opacity-60"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          {busyId === c._id ? "Deleting..." : "Delete"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

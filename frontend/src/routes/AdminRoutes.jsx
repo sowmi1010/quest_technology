@@ -19,13 +19,15 @@ import StudentForm from "../pages/admin/students/StudentForm";
 import CertificateList from "../pages/admin/certificates/CertificateList";
 import IssueCertificate from "../pages/admin/certificates/IssueCertificate";
 
-import Attendance from "../pages/admin/attendance/Attendance";
 import AttendanceReport from "../pages/admin/attendance/AttendanceReport";
 
 import StudentProfile from "../pages/admin/students/profile/StudentProfile";
+import PaymentsOverview from "../pages/admin/payments/PaymentsOverview";
 
 import FeedbackList from "../pages/admin/feedback/FeedbackList";
 import FeedbackForm from "../pages/admin/feedback/FeedbackForm";
+import GalleryList from "../pages/admin/gallery/GalleryList";
+import GalleryForm from "../pages/admin/gallery/GalleryForm";
 
 // (Add more later)
 // import StudentList from "../pages/admin/students/StudentList";
@@ -46,17 +48,21 @@ export default function AdminRoutes() {
           <Route path="courses" element={<CourseList />} />
           <Route path="courses/:id" element={<CourseForm />} />
           <Route path="students" element={<StudentList />} />
+          <Route path="payments" element={<PaymentsOverview />} />
           <Route path="students/new" element={<StudentForm />} />
           <Route path="students/:id" element={<StudentForm />} />{" "}
           <Route path="certificates" element={<CertificateList />} />
           <Route path="certificates/issue" element={<IssueCertificate />} />
-          <Route path="attendance" element={<Attendance />} />
+          <Route path="attendance" element={<Navigate to="/admin/attendance/report" replace />} />
           <Route path="attendance/report" element={<AttendanceReport />} />
           <Route path="" element={<Navigate to="dashboard" replace />} />
           <Route path="students/:id/profile" element={<StudentProfile />} />
           <Route path="feedback" element={<FeedbackList />} />
           <Route path="feedback/new" element={<FeedbackForm />} />
           <Route path="feedback/:id" element={<FeedbackForm />} />
+          <Route path="gallery" element={<GalleryList />} />
+          <Route path="gallery/new" element={<GalleryForm />} />
+          <Route path="gallery/:id" element={<GalleryForm />} />
         </Route>
       </Route>
 

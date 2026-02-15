@@ -256,7 +256,7 @@ export default function CourseForm() {
                 <Tag className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
                 <select
                   className="w-full appearance-none rounded-2xl border border-white/10 bg-white/5 pl-12 pr-10 py-3 text-sm text-white outline-none
-                             focus:ring-2 focus:ring-sky-400/40"
+                             focus:ring-2 focus:ring-sky-400/40 [&>option]:bg-white [&>option]:text-slate-900"
                   name="categoryId"
                   value={form.categoryId}
                   onChange={onChange}

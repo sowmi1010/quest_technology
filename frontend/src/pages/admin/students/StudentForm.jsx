@@ -28,6 +28,18 @@ function clsx(...a) {
   return a.filter(Boolean).join(" ");
 }
 
+function getCourseCategoryId(course) {
+  if (!course?.categoryId) return "";
+  if (typeof course.categoryId === "object") return String(course.categoryId._id || "");
+  return String(course.categoryId || "");
+}
+
+function getCourseCategoryName(course) {
+  if (!course?.categoryId) return "";
+  if (typeof course.categoryId === "object") return String(course.categoryId.name || "");
+  return "";
+}
+
 function Card({ children, className = "" }) {
   return (
     <div
@@ -64,7 +76,7 @@ function Select({ className = "", children, ...props }) {
       {...props}
       className={clsx(
         "w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white outline-none",
-        "focus:ring-2 focus:ring-sky-400/40",
+        "focus:ring-2 focus:ring-sky-400/40 [&>option]:bg-white [&>option]:text-slate-900",
         className
       )}
     >
@@ -127,6 +139,7 @@ export default function StudentForm() {
   const navigate = useNavigate();
 
   const [courses, setCourses] = useState([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
 
@@ -147,6 +160,22 @@ export default function StudentForm() {
     status: "ACTIVE",
   });
 
+  const categories = useMemo(() => {
+    const byId = new Map();
+    for (const c of courses) {
+      const categoryId = getCourseCategoryId(c);
+      if (!categoryId) continue;
+      const categoryName = getCourseCategoryName(c) || `Category ${categoryId.slice(-4)}`;
+      if (!byId.has(categoryId)) byId.set(categoryId, { _id: categoryId, name: categoryName });
+    }
+    return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [courses]);
+
+  const filteredCourses = useMemo(() => {
+    if (!selectedCategoryId) return courses;
+    return courses.filter((c) => getCourseCategoryId(c) === selectedCategoryId);
+  }, [courses, selectedCategoryId]);
+
   const showToast = (message, type = "error") => {
     setToast({ show: true, type, message });
     window.clearTimeout(showToast._t);
@@ -158,6 +187,29 @@ export default function StudentForm() {
   const onChange = (e) =>
     setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
+  const onCategoryChange = (e) => {
+    const nextCategoryId = e.target.value;
+    setSelectedCategoryId(nextCategoryId);
+
+    setForm((prev) => {
+      if (!prev.courseId || !nextCategoryId) return prev;
+      const selectedCourse = courses.find((c) => String(c._id) === String(prev.courseId));
+      if (getCourseCategoryId(selectedCourse) !== nextCategoryId) {
+        return { ...prev, courseId: "" };
+      }
+      return prev;
+    });
+  };
+
+  const onCourseChange = (e) => {
+    const nextCourseId = e.target.value;
+    setForm((prev) => ({ ...prev, courseId: nextCourseId }));
+
+    const selectedCourse = courses.find((c) => String(c._id) === String(nextCourseId));
+    const categoryId = getCourseCategoryId(selectedCourse);
+    if (categoryId) setSelectedCategoryId(categoryId);
+  };
+
   const onPickPhoto = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -167,15 +219,21 @@ export default function StudentForm() {
 
   const load = async () => {
     // Courses
+    let courseList = [];
     try {
       const cRes = await adminGetCourses();
-      setCourses(cRes?.data?.data || []);
+      courseList = cRes?.data?.data || [];
+      setCourses(courseList);
     } catch {
       setCourses([]);
+      courseList = [];
     }
 
     // Student
-    if (!isEdit) return;
+    if (!isEdit) {
+      setSelectedCategoryId("");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -195,6 +253,10 @@ export default function StudentForm() {
         batchType: s?.batchType || "Mon/Wed/Fri",
         status: s?.status || "ACTIVE",
       });
+
+      const selectedCourseId = s?.courseId?._id || s?.courseId || "";
+      const selectedCourse = courseList.find((c) => String(c._id) === String(selectedCourseId));
+      setSelectedCategoryId(getCourseCategoryId(selectedCourse));
 
       setPreview(s?.photoUrl ? `${API_URL}${s.photoUrl}` : "");
     } catch {
@@ -330,24 +392,52 @@ export default function StudentForm() {
               </div>
 
               <div>
+                <Label>Category</Label>
+                <div className="mt-2">
+                  <Select
+                    value={selectedCategoryId}
+                    onChange={onCategoryChange}
+                    required
+                  >
+                    <option value="">Select category</option>
+                    {categories.map((cat) => (
+                      <option key={cat._id} value={cat._id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                {categories.length === 0 && (
+                  <div className="mt-2 text-xs font-semibold text-rose-200">
+                    No categories found from courses. Create categories and courses first.
+                  </div>
+                )}
+              </div>
+
+              <div>
                 <Label>Course</Label>
                 <div className="mt-2">
                   <Select
                     name="courseId"
                     value={form.courseId}
-                    onChange={onChange}
+                    onChange={onCourseChange}
                     required
                   >
-                    <option value="" className="text-black">
+                    <option value="">
                       Select course
                     </option>
-                    {courses.map((c) => (
-                      <option key={c._id} value={c._id} className="text-black">
+                    {filteredCourses.map((c) => (
+                      <option key={c._id} value={c._id}>
                         {c.title} ({c.duration})
                       </option>
                     ))}
                   </Select>
                 </div>
+                {selectedCategoryId && filteredCourses.length === 0 && (
+                  <div className="mt-2 text-xs font-semibold text-rose-200">
+                    No courses found for selected category.
+                  </div>
+                )}
                 {courses.length === 0 && (
                   <div className="mt-2 text-xs font-semibold text-rose-200">
                     No courses found. Add courses first.

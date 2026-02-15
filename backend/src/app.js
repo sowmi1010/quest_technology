@@ -11,8 +11,9 @@ import attendanceRoutes from "./routes/attendance.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
 import { notFound, errorHandler } from "./middleware/error.middleware.js";
 import certificateRoutes from "./routes/certificate.routes.js";
-import paymentScheduleRoutes from "./routes/paymentSchedule.routes.js";
 import feedbackRoutes from "./routes/feedback.routes.js";
+import galleryRoutes from "./routes/gallery.routes.js";
+import performanceRoutes from "./routes/performance.routes.js";
 
 
 
@@ -39,8 +40,9 @@ app.use("/api/students", studentRoutes);
 app.use("/api/certificates", certificateRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/payments", paymentRoutes);
-app.use("/api/payment-schedule", paymentScheduleRoutes);
 app.use("/api/feedback", feedbackRoutes);
+app.use("/api/gallery", galleryRoutes);
+app.use("/api/performance", performanceRoutes);
 // app.use("/api/placements", placementRoutes);
 
 app.use(notFound);

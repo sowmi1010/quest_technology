@@ -178,7 +178,7 @@ export default function Courses() {
             <select
               value={categoryId}
               onChange={onFilter}
-              className="rounded-2xl border border-peacock-border/60 bg-white/60 px-3 py-2 text-sm font-semibold text-peacock-navy outline-none
+              className="rounded-2xl border border-peacock-border/60 bg-white/60  px-3 py-2 text-sm font-semibold text-peacock-navy outline-none
                          focus:ring-2 focus:ring-peacock-blue/40 dark:border-white/10 dark:bg-white/5 dark:text-white"
             >
               <option value="">All Categories</option>

@@ -28,6 +28,27 @@ function fmt(v) {
   return String(v || "").trim();
 }
 
+function isCurrentMonth(dateValue, refDate = new Date()) {
+  if (!dateValue) return false;
+  const d = new Date(dateValue);
+  if (Number.isNaN(d.getTime())) return false;
+  return d.getFullYear() === refDate.getFullYear() && d.getMonth() === refDate.getMonth();
+}
+
+function getStudentGroup(student, refDate = new Date()) {
+  const status = String(student?.status || "ACTIVE").toUpperCase();
+  if (status === "INACTIVE") return "COMPLETED";
+  if (isCurrentMonth(student?.joiningDate || student?.createdAt, refDate)) return "NEW";
+  return "EXISTING";
+}
+
+function studentGroupPill(group) {
+  if (group === "NEW") return "border-sky-200/20 bg-sky-500/10 text-sky-200";
+  if (group === "EXISTING") return "border-amber-200/20 bg-amber-500/10 text-amber-200";
+  if (group === "COMPLETED") return "border-emerald-200/20 bg-emerald-500/10 text-emerald-200";
+  return "border-white/10 bg-white/5 text-white/80";
+}
+
 function Modal({ open, title, children, onClose }) {
   return (
     <AnimatePresence>
@@ -129,6 +150,7 @@ export default function StudentList() {
   // UI state
   const [q, setQ] = useState("");
   const [batch, setBatch] = useState("ALL");
+  const [studentGroup, setStudentGroup] = useState("ALL");
   const [status, setStatus] = useState("ALL");
   const [sort, setSort] = useState("NEWEST"); // NEWEST | NAME
 
@@ -179,16 +201,20 @@ export default function StudentList() {
 
   const stats = useMemo(() => {
     const total = rows.length;
-    const active = rows.filter((s) => (s.status || "ACTIVE") === "ACTIVE").length;
-    const inactive = total - active;
-    return { total, active, inactive };
+    const now = new Date();
+    const newStudents = rows.filter((s) => getStudentGroup(s, now) === "NEW").length;
+    const existingStudents = rows.filter((s) => getStudentGroup(s, now) === "EXISTING").length;
+    const completedStudents = rows.filter((s) => getStudentGroup(s, now) === "COMPLETED").length;
+    return { total, newStudents, existingStudents, completedStudents };
   }, [rows]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
+    const now = new Date();
 
     let list = rows;
 
+    if (studentGroup !== "ALL") list = list.filter((s) => getStudentGroup(s, now) === studentGroup);
     if (batch !== "ALL") list = list.filter((s) => (s.batchType || "") === batch);
     if (status !== "ALL") list = list.filter((s) => (s.status || "ACTIVE") === status);
 
@@ -220,12 +246,27 @@ export default function StudentList() {
     }
 
     return list;
-  }, [rows, q, batch, status, sort]);
+  }, [rows, q, studentGroup, batch, status, sort]);
 
   const batches = useMemo(() => {
     const set = new Set(rows.map((r) => r.batchType).filter(Boolean));
     return ["ALL", ...Array.from(set)];
   }, [rows]);
+
+  const currentMonthLabel = useMemo(
+    () => new Date().toLocaleString("en-US", { month: "long", year: "numeric" }),
+    []
+  );
+
+  const studentTabs = useMemo(
+    () => [
+      { key: "ALL", label: `All (${stats.total})` },
+      { key: "NEW", label: `New (${currentMonthLabel}) - ${stats.newStudents}` },
+      { key: "EXISTING", label: `Existing - ${stats.existingStudents}` },
+      { key: "COMPLETED", label: `Completed - ${stats.completedStudents}` },
+    ],
+    [currentMonthLabel, stats]
+  );
 
   return (
     <div className="p-4 sm:p-6">
@@ -283,10 +324,32 @@ export default function StudentList() {
         </div>
 
         {/* Stats */}
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard icon={Users} label="Total" value={stats.total} tone="sky" />
-          <StatCard icon={BadgeCheck} label="Active" value={stats.active} tone="emerald" />
-          <StatCard icon={BadgeX} label="Inactive" value={stats.inactive} tone="rose" />
+          <StatCard icon={Plus} label="New" value={stats.newStudents} tone="sky" />
+          <StatCard icon={BadgeCheck} label="Existing" value={stats.existingStudents} tone="emerald" />
+          <StatCard icon={BadgeX} label="Completed" value={stats.completedStudents} tone="rose" />
+        </div>
+
+        <div className="mt-4">
+          <div className="mb-2 text-xs font-semibold text-white/55">Student Tabs</div>
+          <div className="flex flex-wrap gap-2">
+            {studentTabs.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setStudentGroup(tab.key)}
+                className={clsx(
+                  "rounded-2xl border px-4 py-2 text-sm font-extrabold transition active:scale-[0.98]",
+                  studentGroup === tab.key
+                    ? "border-sky-200/25 bg-sky-500/15 text-white"
+                    : "border-white/10 bg-white/5 text-white/75 hover:bg-white/10"
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Controls */}
@@ -395,6 +458,7 @@ export default function StudentList() {
                   <th className="p-4 text-left font-semibold text-white/65">Student Phone</th>
                   <th className="p-4 text-left font-semibold text-white/65">Parent Phone</th>
                   <th className="p-4 text-left font-semibold text-white/65">Batch</th>
+                  <th className="p-4 text-left font-semibold text-white/65">Student Tab</th>
                   <th className="p-4 text-left font-semibold text-white/65">Status</th>
                   <th className="p-4 text-left font-semibold text-white/65">Actions</th>
                 </tr>
@@ -433,6 +497,16 @@ export default function StudentList() {
                     <td className="p-4 text-white/80">{s.studentNumber || "-"}</td>
                     <td className="p-4 text-white/80">{s.fatherNumber || "-"}</td>
                     <td className="p-4 text-white/80">{s.batchType || "-"}</td>
+                    <td className="p-4">
+                      <span
+                        className={clsx(
+                          "inline-flex items-center rounded-2xl border px-3 py-1.5 text-xs font-extrabold",
+                          studentGroupPill(getStudentGroup(s))
+                        )}
+                      >
+                        {getStudentGroup(s)}
+                      </span>
+                    </td>
 
                     <td className="p-4">
                       <span

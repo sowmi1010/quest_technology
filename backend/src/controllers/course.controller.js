@@ -1,5 +1,6 @@
 import { z } from "zod";
 import Course from "../models/Course.js";
+import Student from "../models/Student.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 export const createCourse = asyncHandler(async (req, res) => {
@@ -86,4 +87,22 @@ export const updateCourse = asyncHandler(async (req, res) => {
   if (!course) return res.status(404).json({ ok: false, message: "Not found" });
 
   res.json({ ok: true, message: "Course updated", data: course });
+});
+
+export const deleteCourse = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const enrolledCount = await Student.countDocuments({ courseId: id });
+  if (enrolledCount > 0) {
+    return res.status(409).json({
+      ok: false,
+      message: "Cannot delete this course because students are enrolled.",
+      data: { enrolledCount },
+    });
+  }
+
+  const deleted = await Course.findByIdAndDelete(id);
+  if (!deleted) return res.status(404).json({ ok: false, message: "Not found" });
+
+  res.json({ ok: true, message: "Course deleted" });
 });

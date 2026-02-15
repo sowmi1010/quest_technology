@@ -262,7 +262,7 @@ export default function FeedbackForm() {
               <span className="text-xs font-semibold text-white/60">Status</span>
               <select
                 className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none
-                           focus:ring-2 focus:ring-sky-400/40"
+                           focus:ring-2 focus:ring-sky-400/40 [&>option]:bg-white [&>option]:text-slate-900"
                 name="status"
                 value={form.status}
                 onChange={onChange}

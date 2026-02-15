@@ -1,9 +1,13 @@
 import multer from "multer";
+import fs from "fs";
 import path from "path";
 
 function makeStorage(folder) {
   return multer.diskStorage({
-    destination: (req, file, cb) => cb(null, folder),
+    destination: (req, file, cb) => {
+      fs.mkdirSync(folder, { recursive: true });
+      cb(null, folder);
+    },
     filename: (req, file, cb) => {
       const ext = path.extname(file.originalname);
       const name = file.originalname.replace(ext, "").replace(/\s+/g, "-").toLowerCase();
@@ -34,4 +38,10 @@ export const uploadFeedbackImage = multer({
   storage: makeStorage("uploads/feedback"),
   fileFilter,
   limits: { fileSize: 2 * 1024 * 1024 },
+}).single("image");
+
+export const uploadGalleryImage = multer({
+  storage: makeStorage("uploads/gallery"),
+  fileFilter,
+  limits: { fileSize: 4 * 1024 * 1024 },
 }).single("image");

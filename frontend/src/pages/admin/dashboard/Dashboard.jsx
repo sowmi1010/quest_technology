@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../../services/api";
+import { getPaymentsOverview } from "../../../services/paymentApi";
 
 const STATUS_META = {
   NEW: { label: "NEW", cls: "bg-blue-500/15 text-blue-200 border-blue-400/25" },
@@ -15,12 +16,34 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString();
 }
 
+function money(v) {
+  const n = Number(v || 0);
+  return `Rs ${n.toLocaleString("en-IN")}`;
+}
+
+function categoryBucket(name) {
+  const n = String(name || "").toLowerCase();
+  if (n.includes("mech")) return "mech";
+  if (n.includes("account")) return "accounts";
+  if (/\bit\b/.test(n) || n.includes("information technology") || n.includes("computer")) {
+    return "it";
+  }
+  return "other";
+}
+
 export default function Dashboard() {
   const [stats, setStats] = useState({
     totalCourses: 0,
     totalEnquiries: 0,
     newEnquiries: 0,
     publicCourses: 0,
+    totalStudents: 0,
+    newStudentsMech: 0,
+    newStudentsIt: 0,
+    newStudentsAccounts: 0,
+    newPaymentCollected: 0,
+    existingPaymentCollected: 0,
+    defaultPaymentDue: 0,
   });
 
   const [latestEnquiries, setLatestEnquiries] = useState([]);
@@ -40,14 +63,38 @@ export default function Dashboard() {
     setErrMsg("");
 
     try {
-      const coursesRes = await api.get("/courses");
-      const courses = coursesRes.data?.data || [];
+      const [coursesRes, enqRes, paymentOverviewRes] = await Promise.all([
+        api.get("/courses"),
+        api.get("/enquiries"),
+        getPaymentsOverview(),
+      ]);
 
-      const enqRes = await api.get("/enquiries");
+      const courses = coursesRes.data?.data || [];
       const enquiries = enqRes.data?.data || [];
+      const paymentRows = paymentOverviewRes.data?.data || [];
 
       const newEnquiries = enquiries.filter((e) => e.status === "NEW").length;
       const publicCourses = courses.filter((c) => !!c.isPublic).length;
+
+      const newStudents = paymentRows.filter((r) => r.studentGroup === "NEW");
+      const newStudentsByCategory = { mech: 0, it: 0, accounts: 0 };
+      for (const row of newStudents) {
+        const bucket = categoryBucket(row.categoryName);
+        if (bucket in newStudentsByCategory) newStudentsByCategory[bucket] += 1;
+      }
+
+      const newPaymentCollected = paymentRows
+        .filter((r) => r.studentGroup === "NEW")
+        .reduce((sum, r) => sum + Number(r.totalPaid || 0), 0);
+
+      const existingPaymentCollected = paymentRows
+        .filter((r) => r.studentGroup === "EXISTING")
+        .reduce((sum, r) => sum + Number(r.totalPaid || 0), 0);
+
+      const defaultPaymentDue = paymentRows.reduce(
+        (sum, r) => sum + Math.max(0, Number(r.balance || 0)),
+        0
+      );
 
       const sortedEnq = [...enquiries].sort(
         (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
@@ -58,6 +105,13 @@ export default function Dashboard() {
         publicCourses,
         totalEnquiries: enquiries.length,
         newEnquiries,
+        totalStudents: paymentRows.length,
+        newStudentsMech: newStudentsByCategory.mech,
+        newStudentsIt: newStudentsByCategory.it,
+        newStudentsAccounts: newStudentsByCategory.accounts,
+        newPaymentCollected,
+        existingPaymentCollected,
+        defaultPaymentDue,
       });
 
       setLatestEnquiries(sortedEnq.slice(0, 7));
@@ -150,6 +204,58 @@ export default function Dashboard() {
           icon="🆕"
           accent="blue"
         />
+      </div>
+
+      {/* Student & Payment Snapshot (Live) */}
+      <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+        <div className="text-sm font-bold text-white">Live Student & Payment Snapshot</div>
+        <div className="mt-1 text-xs text-white/55">
+          Auto-fetched from current database (not manual entry).
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <StatCard
+            title="New Students - Mech"
+            value={stats.newStudentsMech}
+            hint="Current month"
+            icon="M"
+            accent="blue"
+          />
+          <StatCard
+            title="New Students - IT"
+            value={stats.newStudentsIt}
+            hint="Current month"
+            icon="IT"
+            accent="blue"
+          />
+          <StatCard
+            title="New Students - Accounts"
+            value={stats.newStudentsAccounts}
+            hint="Current month"
+            icon="A"
+            accent="blue"
+          />
+          <StatCard
+            title="New Payment Collected"
+            value={money(stats.newPaymentCollected)}
+            hint="Collected from new students"
+            icon="Rs"
+            accent="green"
+          />
+          <StatCard
+            title="Existing Payment Collected"
+            value={money(stats.existingPaymentCollected)}
+            hint="Collected from existing students"
+            icon="Rs"
+            accent="green"
+          />
+          <StatCard
+            title="Default Payment Due"
+            value={money(stats.defaultPaymentDue)}
+            hint="Pending balance amount"
+            icon="Rs"
+          />
+        </div>
       </div>
 
       {/* Content */}
@@ -248,10 +354,11 @@ export default function Dashboard() {
             <QuickLink to="/admin/enquiries" title="Manage Enquiries" desc="Update status, notes & follow-ups" icon="📞" />
             <QuickLink to="/admin/courses" title="Course List" desc="Edit course visibility for public" icon="📋" />
             <QuickLink to="/admin/students" title="Students" desc="Profiles, attendance & payments" icon="🎓" />
+            <QuickLink to="/admin/payments" title="Payments" desc="View new, existing and due payment tabs" icon="💳" />
           </div>
 
           <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-white/60">
-            ✅ Next upgrade: show Payments Due + Today Attendance summary here.
+            Live cards above are auto-calculated from real student, enquiry and payment data.
           </div>
         </div>
       </div>

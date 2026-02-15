@@ -5,6 +5,7 @@ import { PUBLIC_CONTACT } from "../../../utils/publicUi";
 const links = [
   { to: "/", label: "Home" },
   { to: "/courses", label: "Courses" },
+  { to: "/gallery", label: "Gallery" },
   { to: "/enquiry", label: "Enquiry" },
 ];
 

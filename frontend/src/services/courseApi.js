@@ -13,6 +13,8 @@ export const adminUpdateCourse = (id, formData) =>
     headers: { "Content-Type": "multipart/form-data" },
   });
 
+export const adminDeleteCourse = (id) => api.delete(`/courses/${id}`);
+
 
   // PUBLIC
 export const publicGetCourses = (categoryId) =>

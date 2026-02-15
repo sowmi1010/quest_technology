@@ -14,7 +14,8 @@ function monthToRange(monthStr) {
 }
 
 function percentBadgeClass(p) {
-  if (p >= 90) return "border-emerald-200/30 bg-emerald-500/15 text-emerald-200";
+  if (p >= 90)
+    return "border-emerald-200/30 bg-emerald-500/15 text-emerald-200";
   if (p >= 75) return "border-sky-200/30 bg-sky-500/15 text-sky-200";
   if (p >= 60) return "border-amber-200/30 bg-amber-500/15 text-amber-200";
   return "border-rose-200/30 bg-rose-500/15 text-rose-200";
@@ -32,14 +33,18 @@ export default function AttendanceReport() {
 
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState("percentage"); // percentage | present | absent | name
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const [toast, setToast] = useState({
+    show: false,
+    message: "",
+    type: "success",
+  });
 
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
     window.clearTimeout(showToast._t);
     showToast._t = window.setTimeout(
       () => setToast({ show: false, message: "", type }),
-      2200
+      2200,
     );
   };
 
@@ -66,8 +71,13 @@ export default function AttendanceReport() {
     const avg =
       totalStudents === 0
         ? 0
-        : Math.round(rows.reduce((sum, r) => sum + (Number(r.percentage) || 0), 0) / totalStudents);
-    const above75 = rows.filter((r) => (Number(r.percentage) || 0) >= 75).length;
+        : Math.round(
+            rows.reduce((sum, r) => sum + (Number(r.percentage) || 0), 0) /
+              totalStudents,
+          );
+    const above75 = rows.filter(
+      (r) => (Number(r.percentage) || 0) >= 75,
+    ).length;
     return { totalStudents, avg, above75 };
   }, [rows]);
 
@@ -78,15 +88,18 @@ export default function AttendanceReport() {
       : rows.filter((r) =>
           `${r.name || ""} ${r.studentId || ""} ${r.courseTitle || ""}`
             .toLowerCase()
-            .includes(q)
+            .includes(q),
         );
 
     const safeNum = (v) => Number(v) || 0;
 
     list = [...list].sort((a, b) => {
-      if (sortBy === "name") return String(a.name || "").localeCompare(String(b.name || ""));
-      if (sortBy === "present") return safeNum(b.presentDays) - safeNum(a.presentDays);
-      if (sortBy === "absent") return safeNum(b.absentDays) - safeNum(a.absentDays);
+      if (sortBy === "name")
+        return String(a.name || "").localeCompare(String(b.name || ""));
+      if (sortBy === "present")
+        return safeNum(b.presentDays) - safeNum(a.presentDays);
+      if (sortBy === "absent")
+        return safeNum(b.absentDays) - safeNum(a.absentDays);
       return safeNum(b.percentage) - safeNum(a.percentage);
     });
 
@@ -119,7 +132,9 @@ export default function AttendanceReport() {
     ]);
 
     const csv = [header, ...lines]
-      .map((arr) => arr.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(","))
+      .map((arr) =>
+        arr.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(","),
+      )
       .join("\n");
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -161,9 +176,12 @@ export default function AttendanceReport() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Attendance Report</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-white">
+            Attendance Report
+          </h1>
           <p className="mt-1 text-sm text-white/60">
-            Month report: <span className="font-semibold text-white">{start}</span> to{" "}
+            Month report:{" "}
+            <span className="font-semibold text-white">{start}</span> to{" "}
             <span className="font-semibold text-white">{end}</span>
           </p>
         </div>
@@ -171,13 +189,17 @@ export default function AttendanceReport() {
         {/* Stats */}
         <div className="flex flex-wrap gap-2">
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80">
-            Students: <span className="font-semibold text-white">{stats.totalStudents}</span>
+            Students:{" "}
+            <span className="font-semibold text-white">
+              {stats.totalStudents}
+            </span>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80">
             Avg %: <span className="font-semibold text-white">{stats.avg}</span>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80">
-            ≥75%: <span className="font-semibold text-white">{stats.above75}</span>
+            ≥75%:{" "}
+            <span className="font-semibold text-white">{stats.above75}</span>
           </div>
         </div>
       </div>
@@ -202,7 +224,7 @@ export default function AttendanceReport() {
               value={batchType}
               onChange={(e) => setBatchType(e.target.value)}
               className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none
-                         focus:ring-2 focus:ring-sky-400/40"
+                         focus:ring-2 focus:ring-sky-400/40 [&>option]:bg-white [&>option]:text-slate-900"
             >
               <option>Mon/Wed/Fri</option>
               <option>Tue/Thu/Sat</option>
@@ -227,7 +249,7 @@ export default function AttendanceReport() {
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none
-                         focus:ring-2 focus:ring-sky-400/40"
+                         focus:ring-2 focus:ring-sky-400/40 [&>option]:bg-white [&>option]:text-slate-900"
             >
               <option value="percentage">Percentage</option>
               <option value="present">Present days</option>
@@ -257,13 +279,27 @@ export default function AttendanceReport() {
             <table className="w-full text-sm text-white/85">
               <thead className="sticky top-0 z-10 bg-slate-950/70 backdrop-blur-xl">
                 <tr className="border-b border-white/10">
-                  <th className="p-4 text-left font-semibold text-white/70">Photo</th>
-                  <th className="p-4 text-left font-semibold text-white/70">Student</th>
-                  <th className="p-4 text-left font-semibold text-white/70">Course</th>
-                  <th className="p-4 text-left font-semibold text-white/70">Present</th>
-                  <th className="p-4 text-left font-semibold text-white/70">Absent</th>
-                  <th className="p-4 text-left font-semibold text-white/70">Total</th>
-                  <th className="p-4 text-left font-semibold text-white/70">%</th>
+                  <th className="p-4 text-left font-semibold text-white/70">
+                    Photo
+                  </th>
+                  <th className="p-4 text-left font-semibold text-white/70">
+                    Student
+                  </th>
+                  <th className="p-4 text-left font-semibold text-white/70">
+                    Course
+                  </th>
+                  <th className="p-4 text-left font-semibold text-white/70">
+                    Present
+                  </th>
+                  <th className="p-4 text-left font-semibold text-white/70">
+                    Absent
+                  </th>
+                  <th className="p-4 text-left font-semibold text-white/70">
+                    Total
+                  </th>
+                  <th className="p-4 text-left font-semibold text-white/70">
+                    %
+                  </th>
                 </tr>
               </thead>
 
@@ -295,13 +331,19 @@ export default function AttendanceReport() {
 
                       <td className="p-4">
                         <div className="font-semibold text-white">{r.name}</div>
-                        <div className="text-xs text-white/50">{r.studentId}</div>
+                        <div className="text-xs text-white/50">
+                          {r.studentId}
+                        </div>
                       </td>
 
                       <td className="p-4">{r.courseTitle || "-"}</td>
 
-                      <td className="p-4 font-semibold text-emerald-200">{r.presentDays}</td>
-                      <td className="p-4 font-semibold text-rose-200">{r.absentDays}</td>
+                      <td className="p-4 font-semibold text-emerald-200">
+                        {r.presentDays}
+                      </td>
+                      <td className="p-4 font-semibold text-rose-200">
+                        {r.absentDays}
+                      </td>
                       <td className="p-4">{r.totalDays}</td>
 
                       <td className="p-4">
@@ -318,7 +360,9 @@ export default function AttendanceReport() {
                           <div className="h-2 w-28 rounded-full bg-white/10 overflow-hidden">
                             <div
                               className="h-full rounded-full bg-white/50"
-                              style={{ width: `${Math.min(100, Math.max(0, p))}%` }}
+                              style={{
+                                width: `${Math.min(100, Math.max(0, p))}%`,
+                              }}
                             />
                           </div>
                         </div>

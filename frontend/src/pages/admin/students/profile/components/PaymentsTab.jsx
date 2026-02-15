@@ -75,6 +75,7 @@ export default function PaymentsTab({ studentId }) {
 
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("Cash");
+  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -123,8 +124,8 @@ export default function PaymentsTab({ studentId }) {
 
   const canAdd = useMemo(() => {
     const a = Number(amount);
-    return !busy && a > 0;
-  }, [amount, busy]);
+    return !busy && a > 0 && Boolean(paymentDate);
+  }, [amount, busy, paymentDate]);
 
   const onAdd = async () => {
     const a = Number(amount);
@@ -132,7 +133,7 @@ export default function PaymentsTab({ studentId }) {
 
     setBusy(true);
     try {
-      await addPayment({ studentId, amount: a, method });
+      await addPayment({ studentId, amount: a, method, date: paymentDate });
       setAmount("");
       showToast("Payment added", "success");
       await load();
@@ -249,6 +250,15 @@ export default function PaymentsTab({ studentId }) {
             onChange={(e) => setAmount(e.target.value)}
             className="w-full sm:w-56 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none
                        focus:ring-2 focus:ring-sky-400/40"
+          />
+
+          <input
+            type="date"
+            value={paymentDate}
+            onChange={(e) => setPaymentDate(e.target.value)}
+            className="w-full sm:w-48 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none
+                       focus:ring-2 focus:ring-sky-400/40"
+            disabled={busy}
           />
 
           <div className="inline-flex w-full sm:w-auto items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">

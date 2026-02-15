@@ -242,7 +242,7 @@ export default function EnquiryView() {
             <label className="text-xs font-semibold text-white/60">Status</label>
             <select
               className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none
-                         focus:ring-2 focus:ring-sky-400/40"
+                         focus:ring-2 focus:ring-sky-400/40 [&>option]:bg-white [&>option]:text-slate-900"
               value={status}
               onChange={(e) => setStatus(e.target.value)}
             >

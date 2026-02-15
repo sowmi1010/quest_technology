@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, RefreshCcw, CalendarDays } from "lucide-react";
-import { getStudentAttendanceRange } from "../../../../../services/attendanceApi";
+import {
+  getStudentAttendanceRange,
+  setStudentAttendanceByDate,
+} from "../../../../../services/attendanceApi";
 
 function monthToRange(monthStr) {
   const [y, m] = monthStr.split("-").map(Number);
@@ -45,18 +48,23 @@ export default function AttendanceCalendar({ studentId }) {
   const [month, setMonth] = useState(defaultMonth);
 
   const [loading, setLoading] = useState(true);
+  const [savingByDate, setSavingByDate] = useState({});
+  const [error, setError] = useState("");
   const [map, setMap] = useState({}); // { "YYYY-MM-DD": "PRESENT"|"ABSENT" }
 
   const info = useMemo(() => monthToRange(month), [month]);
 
   const load = async () => {
     setLoading(true);
+    setError("");
     try {
       const res = await getStudentAttendanceRange(studentId, info.start, info.end);
       const list = res?.data?.data || [];
       const next = {};
       for (const r of list) next[isoKey(r.date)] = r.status;
       setMap(next);
+    } catch (e) {
+      setError("Failed to load attendance");
     } finally {
       setLoading(false);
     }
@@ -68,6 +76,33 @@ export default function AttendanceCalendar({ studentId }) {
   }, [month, studentId]);
 
   const todayKey = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  const markAttendance = async (dateKey, status) => {
+    const prevStatus = map[dateKey] || "";
+    if (prevStatus === status) return;
+
+    setError("");
+    setMap((prev) => ({ ...prev, [dateKey]: status }));
+    setSavingByDate((prev) => ({ ...prev, [dateKey]: true }));
+
+    try {
+      await setStudentAttendanceByDate(studentId, { date: dateKey, status });
+    } catch (e) {
+      setMap((prev) => {
+        const next = { ...prev };
+        if (prevStatus) next[dateKey] = prevStatus;
+        else delete next[dateKey];
+        return next;
+      });
+      setError("Failed to save attendance. Please try again.");
+    } finally {
+      setSavingByDate((prev) => {
+        const next = { ...prev };
+        delete next[dateKey];
+        return next;
+      });
+    }
+  };
 
   const cells = useMemo(() => {
     const firstDay = new Date(info.year, info.monthIndex, 1);
@@ -88,6 +123,7 @@ export default function AttendanceCalendar({ studentId }) {
           dayNum,
           status: map[key] || "",
           isToday: key === todayKey,
+          isFuture: key > todayKey,
         });
       }
     }
@@ -180,6 +216,8 @@ export default function AttendanceCalendar({ studentId }) {
         <Legend text="Not marked" cls="border-white/10 bg-white/5 text-white/70" />
         <Legend text="Today" cls="border-sky-200/30 bg-sky-500/15 text-sky-200" />
       </div>
+      <p className="mt-2 text-xs text-white/55">Click P or A inside a day to mark attendance.</p>
+      {error && <p className="mt-2 text-xs font-semibold text-rose-300">{error}</p>}
 
       {/* Calendar */}
       <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-white/5">
@@ -195,7 +233,7 @@ export default function AttendanceCalendar({ studentId }) {
           <div className="p-5">
             <div className="grid grid-cols-7 gap-2">
               {Array.from({ length: 28 }).map((_, i) => (
-                <div key={i} className="h-20 rounded-2xl bg-white/10 animate-pulse" />
+                <div key={i} className="h-24 rounded-2xl bg-white/10 animate-pulse" />
               ))}
             </div>
           </div>
@@ -212,10 +250,18 @@ export default function AttendanceCalendar({ studentId }) {
                 c.type === "blank" ? (
                   <div
                     key={c.key}
-                    className="h-20 border-t border-r last:border-r-0 border-white/10 bg-transparent"
+                    className="h-24 border-t border-r last:border-r-0 border-white/10 bg-transparent"
                   />
                 ) : (
-                  <DayCell key={c.key} day={c.dayNum} status={c.status} isToday={c.isToday} />
+                  <DayCell
+                    key={c.key}
+                    day={c.dayNum}
+                    status={c.status}
+                    isToday={c.isToday}
+                    isFuture={c.isFuture}
+                    saving={Boolean(savingByDate[c.key])}
+                    onMark={(status) => markAttendance(c.key, status)}
+                  />
                 )
               )}
             </motion.div>
@@ -242,15 +288,17 @@ function SummaryCard({ title, value, tone }) {
   );
 }
 
-function DayCell({ day, status, isToday }) {
+function DayCell({ day, status, isToday, isFuture, saving, onMark }) {
   const badge = status === "PRESENT" ? "P" : status === "ABSENT" ? "A" : "-";
+  const disableActions = isFuture || saving;
 
   return (
     <div
       className={[
-        "h-20 border-t border-r last:border-r-0 border-white/10 p-2 transition",
+        "h-24 border-t border-r last:border-r-0 border-white/10 p-2 transition",
         "hover:bg-white/5",
         isToday ? "bg-sky-500/10" : "bg-transparent",
+        isFuture ? "opacity-70" : "",
       ].join(" ")}
     >
       <div className="flex items-start justify-between">
@@ -264,6 +312,38 @@ function DayCell({ day, status, isToday }) {
         >
           {badge}
         </div>
+      </div>
+
+      <div className="mt-2 flex items-center gap-1">
+        <button
+          type="button"
+          disabled={disableActions}
+          onClick={() => onMark("PRESENT")}
+          className={[
+            "rounded-lg border px-2 py-0.5 text-[10px] font-extrabold transition",
+            status === "PRESENT"
+              ? "border-emerald-200/30 bg-emerald-500/20 text-emerald-100"
+              : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10",
+            disableActions ? "cursor-not-allowed opacity-60" : "",
+          ].join(" ")}
+        >
+          P
+        </button>
+        <button
+          type="button"
+          disabled={disableActions}
+          onClick={() => onMark("ABSENT")}
+          className={[
+            "rounded-lg border px-2 py-0.5 text-[10px] font-extrabold transition",
+            status === "ABSENT"
+              ? "border-rose-200/30 bg-rose-500/20 text-rose-100"
+              : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10",
+            disableActions ? "cursor-not-allowed opacity-60" : "",
+          ].join(" ")}
+        >
+          A
+        </button>
+        {saving && <span className="text-[10px] font-semibold text-white/55">Saving...</span>}
       </div>
     </div>
   );
