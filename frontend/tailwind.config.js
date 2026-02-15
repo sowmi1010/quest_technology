@@ -18,6 +18,10 @@ export default {
         "peacock-ink": withOpacity("--qt-ink"),
         "peacock-muted": withOpacity("--qt-muted"),
       },
+      fontFamily: {
+      brand: ["Manrope", "ui-sans-serif", "system-ui"],
+      display: ["Playfair Display", "ui-serif", "Georgia"],
+    },
       boxShadow: {
         soft: "var(--qt-shadow-soft)",
         lift: "var(--qt-shadow-lift)",

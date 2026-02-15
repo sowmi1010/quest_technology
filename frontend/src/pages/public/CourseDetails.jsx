@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { motion, useReducedMotion } from "framer-motion";
 import { publicGetCourse } from "../../services/courseApi";
 import {
   IconArrowRight,
@@ -11,6 +12,7 @@ import {
   IconMessageCircle,
   IconPhone,
   IconShield,
+  IconSpark,
 } from "../../components/ui/PublicIcons";
 import {
   INSTALLMENT_START,
@@ -20,9 +22,36 @@ import {
 } from "../../utils/publicUi";
 import PublicSeo from "../../components/seo/PublicSeo";
 
+/* ----------------------------- Motion ----------------------------- */
+
+const ease = [0.16, 1, 0.3, 1];
+
+function useMotion() {
+  const reduce = useReducedMotion();
+
+  const fadeUp = {
+    hidden: { opacity: 0, y: reduce ? 0 : 14, filter: "blur(6px)" },
+    show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.65, ease } },
+  };
+
+  const fade = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { duration: 0.65, ease } },
+  };
+
+  const stagger = {
+    hidden: {},
+    show: { transition: { staggerChildren: 0.09, delayChildren: 0.06 } },
+  };
+
+  return { reduce, fadeUp, fade, stagger };
+}
+
+/* ----------------------------- Skeleton ----------------------------- */
+
 function Skeleton() {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 overflow-x-hidden">
       <div className="rounded-3xl border border-peacock-border/60 bg-white/70 p-6 shadow-soft backdrop-blur-xl dark:bg-slate-950/35 dark:border-white/10">
         <div className="h-5 w-40 rounded bg-peacock-bg animate-pulse dark:bg-white/10" />
         <div className="mt-5 h-72 w-full rounded-3xl bg-peacock-bg animate-pulse dark:bg-white/10" />
@@ -38,10 +67,13 @@ function Skeleton() {
   );
 }
 
+/* ----------------------------- Page ----------------------------- */
+
 export default function CourseDetails() {
   const { id } = useParams();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { fadeUp, fade, stagger } = useMotion();
 
   useEffect(() => {
     (async () => {
@@ -57,6 +89,7 @@ export default function CourseDetails() {
 
   const img = useMemo(() => getPublicImageUrl(course?.imageUrl), [course]);
   const syllabus = useMemo(() => (Array.isArray(course?.syllabus) ? course.syllabus : []), [course]);
+
   const seoTitle = useMemo(() => {
     if (!course?.title) return "Course Details";
     return `${course.title} Course`;
@@ -92,10 +125,7 @@ export default function CourseDetails() {
       "@type": "Course",
       name: course.title,
       description: seoDescription,
-      provider: {
-        "@type": "Organization",
-        name: "Quest Technology",
-      },
+      provider: { "@type": "Organization", name: "Quest Technology" },
       courseMode: "onsite",
     };
   }, [course?.title, seoDescription]);
@@ -116,7 +146,7 @@ export default function CourseDetails() {
 
   if (!course) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 overflow-x-hidden">
         <PublicSeo
           title={seoTitle}
           description={seoDescription}
@@ -140,7 +170,7 @@ export default function CourseDetails() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 overflow-x-hidden">
       <PublicSeo
         title={seoTitle}
         description={seoDescription}
@@ -151,8 +181,13 @@ export default function CourseDetails() {
         jsonLd={courseSchema}
       />
 
+      {/* Premium background mesh */}
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute inset-0 bg-[radial-gradient(900px_420px_at_12%_-10%,rgba(59,130,246,0.16),transparent_60%),radial-gradient(850px_420px_at_92%_10%,rgba(16,185,129,0.14),transparent_60%),radial-gradient(900px_520px_at_40%_120%,rgba(99,102,241,0.10),transparent_60%)] dark:bg-[radial-gradient(900px_420px_at_12%_-10%,rgba(59,130,246,0.12),transparent_60%),radial-gradient(850px_420px_at_92%_10%,rgba(16,185,129,0.11),transparent_60%),radial-gradient(900px_520px_at_40%_120%,rgba(99,102,241,0.08),transparent_60%)]" />
+      </div>
+
       {/* Back */}
-      <div className="mb-5">
+      <motion.div variants={fadeUp} initial="hidden" animate="show" className="mb-5">
         <Link
           to="/courses"
           className="inline-flex items-center gap-2 text-sm font-semibold text-peacock-blue transition hover:text-peacock-navy dark:text-sky-200 dark:hover:text-white"
@@ -160,21 +195,37 @@ export default function CourseDetails() {
           <IconArrowRight className="h-4 w-4 rotate-180" />
           Back to courses
         </Link>
-      </div>
+      </motion.div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.65fr_0.95fr]">
-        {/* Main Card */}
-        <div className="relative overflow-hidden rounded-3xl border border-peacock-border/60 bg-white/70 shadow-soft backdrop-blur-xl dark:bg-slate-950/35 dark:border-white/10">
-          {/* Ink Blue + Green glow */}
+      {/* Layout */}
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,0.95fr)]">
+        {/* MAIN */}
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          animate="show"
+          className="group relative min-w-0 overflow-hidden rounded-3xl border border-peacock-border/60 bg-white/70 shadow-soft backdrop-blur-xl dark:bg-slate-950/35 dark:border-white/10"
+        >
+          {/* glows */}
           <div className="pointer-events-none absolute -left-24 -top-24 h-64 w-64 rounded-full bg-peacock-blue/15 blur-3xl" />
           <div className="pointer-events-none absolute -right-24 -bottom-24 h-64 w-64 rounded-full bg-peacock-green/15 blur-3xl" />
+          {/* shine */}
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent,rgba(255,255,255,0.32),transparent)] opacity-0 transition duration-700 group-hover:opacity-100" />
 
           {/* Image */}
           {img ? (
-            <div className="relative">
-              <img src={img} alt={course.title} className="h-72 w-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-black/5 to-transparent" />
-            </div>
+            <motion.div variants={fade} initial="hidden" animate="show" className="relative overflow-hidden">
+              <motion.img
+                src={img}
+                alt={course.title}
+                className="h-72 w-full object-cover"
+                initial={{ scale: 1.05 }}
+                animate={{ scale: 1.0 }}
+                transition={{ duration: 0.9, ease }}
+                whileHover={{ scale: 1.03 }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
+            </motion.div>
           ) : (
             <div className="flex h-72 items-center justify-center bg-peacock-bg text-peacock-muted dark:bg-white/5 dark:text-white/60">
               <IconBookOpen className="h-8 w-8" />
@@ -182,90 +233,124 @@ export default function CourseDetails() {
           )}
 
           <div className="p-6">
-            {/* Category chip */}
+            {/* Chips */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center rounded-full border border-peacock-border/60 bg-peacock-bg/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-peacock-muted dark:border-white/10 dark:bg-white/5 dark:text-white/60">
+              <span className="inline-flex items-center rounded-full border border-peacock-border/60 bg-peacock-bg/70 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-peacock-muted dark:border-white/10 dark:bg-white/5 dark:text-white/60">
                 {course.categoryId?.name || "Category"}
               </span>
 
               {course.isPublic ? (
-                <span className="inline-flex items-center gap-2 rounded-full bg-peacock-green/10 px-3 py-1 text-[11px] font-bold text-peacock-green dark:bg-emerald-400/10 dark:text-emerald-200">
+                <span className="inline-flex items-center gap-2 rounded-full bg-peacock-green/10 px-3 py-1 text-[11px] font-extrabold tracking-[0.12em] text-peacock-green dark:bg-emerald-400/10 dark:text-emerald-200">
                   <IconShield className="h-4 w-4" />
                   Public
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-2 rounded-full bg-peacock-blue/10 px-3 py-1 text-[11px] font-bold text-peacock-blue dark:bg-sky-400/10 dark:text-sky-200">
+                <span className="inline-flex items-center gap-2 rounded-full bg-peacock-blue/10 px-3 py-1 text-[11px] font-extrabold tracking-[0.12em] text-peacock-blue dark:bg-sky-400/10 dark:text-sky-200">
                   <IconShield className="h-4 w-4" />
                   Private
                 </span>
               )}
             </div>
 
-            <h1 className="mt-3 text-3xl font-extrabold text-peacock-navy md:text-4xl dark:text-white">
+            <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-peacock-navy md:text-4xl dark:text-white">
               {course.title}
             </h1>
 
-            <p className="mt-2 text-sm text-peacock-muted dark:text-white/60">
-              A practical, outcome-focused program with guided modules and real support.
+            <p className="mt-2 text-sm leading-relaxed text-peacock-muted dark:text-white/60">
+              Learn with hands-on practice, guided sessions, and career-oriented support.
             </p>
 
-            {/* Info Grid */}
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <InfoBox
-                icon={<IconClock className="h-4 w-4 text-peacock-blue dark:text-sky-200" />}
-                label="Duration"
-                value={course.duration || "Flexible"}
-              />
-              <InfoBox
-                icon={<IconBriefcase className="h-4 w-4 text-peacock-blue dark:text-sky-200" />}
-                label="Total Fee"
-                value={formatINR(course.totalFee)}
-              />
-              <InfoBox
-                icon={<IconCalendar className="h-4 w-4 text-peacock-blue dark:text-sky-200" />}
-                label="Installment Start"
-                value={formatINR(course.installmentStart ?? INSTALLMENT_START)}
-              />
-              <InfoBox
-                icon={<IconShield className="h-4 w-4 text-peacock-blue dark:text-sky-200" />}
-                label="Admission"
-                value="Open"
-              />
-            </div>
+            {/* Info Grid (animated) */}
+            <motion.div
+              variants={stagger}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, amount: 0.25 }}
+              className="mt-5 grid gap-3 sm:grid-cols-2"
+            >
+              <motion.div variants={fadeUp}>
+                <InfoBox
+                  icon={<IconClock className="h-4 w-4 text-peacock-blue dark:text-sky-200" />}
+                  label="Duration"
+                  value={course.duration || "Flexible"}
+                />
+              </motion.div>
+              <motion.div variants={fadeUp}>
+                <InfoBox
+                  icon={<IconBriefcase className="h-4 w-4 text-peacock-blue dark:text-sky-200" />}
+                  label="Total Fee"
+                  value={formatINR(course.totalFee)}
+                />
+              </motion.div>
+              <motion.div variants={fadeUp}>
+                <InfoBox
+                  icon={<IconCalendar className="h-4 w-4 text-peacock-blue dark:text-sky-200" />}
+                  label="Installment Start"
+                  value={formatINR(course.installmentStart ?? INSTALLMENT_START)}
+                />
+              </motion.div>
+              <motion.div variants={fadeUp}>
+                <InfoBox
+                  icon={<IconShield className="h-4 w-4 text-peacock-blue dark:text-sky-200" />}
+                  label="Admission"
+                  value="Open"
+                />
+              </motion.div>
+            </motion.div>
 
             {/* Syllabus */}
-            <div className="mt-8">
+            <motion.div
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, amount: 0.25 }}
+              className="mt-8"
+            >
               <div className="flex items-end justify-between gap-3">
-                <h2 className="text-xl font-bold text-peacock-navy dark:text-white">Syllabus Outline</h2>
+                <h2 className="text-xl font-extrabold text-peacock-navy dark:text-white">Syllabus Outline</h2>
                 <span className="text-xs font-semibold text-peacock-muted dark:text-white/60">
                   {syllabus.length} topics
                 </span>
               </div>
 
               {syllabus.length ? (
-                <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+                <motion.ul
+                  variants={stagger}
+                  initial="hidden"
+                  whileInView="show"
+                  viewport={{ once: true, amount: 0.25 }}
+                  className="mt-4 grid gap-2 sm:grid-cols-2"
+                >
                   {syllabus.map((item, idx) => (
-                    <li
+                    <motion.li
                       key={`${item}-${idx}`}
-                      className="group flex items-start gap-2 rounded-2xl border border-peacock-border/60 bg-peacock-bg/60 px-3 py-3 text-sm text-peacock-ink
-                                 transition hover:-translate-y-0.5 hover:bg-peacock-bg dark:border-white/10 dark:bg-white/5 dark:text-white/80"
+                      variants={fadeUp}
+                      whileHover={{ y: -3 }}
+                      className="group flex min-w-0 items-start gap-2 rounded-2xl border border-peacock-border/60 bg-peacock-bg/60 px-3 py-3 text-sm text-peacock-ink
+                                 transition dark:border-white/10 dark:bg-white/5 dark:text-white/80"
                     >
-                      <span className="mt-0.5 rounded-xl bg-peacock-green/15 p-1 text-peacock-green dark:bg-emerald-400/10 dark:text-emerald-200">
+                      <span className="mt-0.5 shrink-0 rounded-xl bg-peacock-green/15 p-1 text-peacock-green dark:bg-emerald-400/10 dark:text-emerald-200">
                         <IconCheckCircle className="h-4 w-4" />
                       </span>
-                      <span>{item}</span>
-                    </li>
+                      <span className="min-w-0 break-words">{item}</span>
+                    </motion.li>
                   ))}
-                </ul>
+                </motion.ul>
               ) : (
                 <div className="mt-3 rounded-2xl border border-peacock-border/60 bg-peacock-bg/70 px-4 py-3 text-sm text-peacock-muted dark:border-white/10 dark:bg-white/5 dark:text-white/60">
                   No syllabus added yet.
                 </div>
               )}
-            </div>
+            </motion.div>
 
             {/* CTA */}
-            <div className="mt-7 flex flex-wrap gap-3">
+            <motion.div
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, amount: 0.25 }}
+              className="mt-7 flex flex-wrap gap-3"
+            >
               <Link
                 to="/enquiry"
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-peacock-blue to-peacock-green px-5 py-3 text-sm font-extrabold text-white
@@ -283,23 +368,40 @@ export default function CourseDetails() {
               >
                 Back to Courses
               </Link>
-            </div>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Right Sidebar */}
-        <aside className="space-y-5">
+        {/* SIDEBAR */}
+        <motion.aside
+          variants={stagger}
+          initial="hidden"
+          animate="show"
+          className="space-y-5 min-w-0 overflow-hidden"
+        >
           {/* Sticky Contact */}
-          <div className="sticky top-24 rounded-3xl border border-peacock-border/60 bg-white/70 p-6 shadow-soft backdrop-blur-xl dark:bg-slate-950/35 dark:border-white/10">
-            <h2 className="text-lg font-extrabold text-peacock-navy dark:text-white">Need guidance?</h2>
-            <p className="mt-2 text-sm leading-relaxed text-peacock-muted dark:text-white/60">
-              Contact our team for batch timings, fee plans, and admission support.
-            </p>
+          <motion.div
+            variants={fadeUp}
+            className="rounded-3xl border border-peacock-border/60 bg-white/70 p-6 shadow-soft backdrop-blur-xl dark:bg-slate-950/35 dark:border-white/10 lg:sticky lg:top-24 min-w-0"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-extrabold text-peacock-navy dark:text-white">Need guidance?</h2>
+                <p className="mt-2 text-sm leading-relaxed text-peacock-muted dark:text-white/60">
+                  Batch timings, fee plans, and admission support.
+                </p>
+              </div>
+
+              <span className="inline-flex rounded-2xl border border-peacock-border/60 bg-peacock-bg/70 p-2 dark:border-white/10 dark:bg-white/5">
+                <IconSpark className="h-4 w-4 text-peacock-blue dark:text-sky-200" />
+              </span>
+            </div>
 
             <div className="mt-4 grid gap-3">
               <a
                 href={`tel:${PUBLIC_CONTACT.phoneE164}`}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-peacock-border/70 bg-white/60 px-4 py-3 text-sm font-extrabold text-peacock-navy
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-peacock-border/70 bg-white/60
+                           px-4 py-3 text-sm font-extrabold text-peacock-navy text-center leading-snug break-words
                            transition hover:bg-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
               >
                 <IconPhone className="h-4 w-4" />
@@ -310,7 +412,7 @@ export default function CourseDetails() {
                 href={PUBLIC_CONTACT.whatsapp}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-peacock-green px-4 py-3 text-sm font-extrabold text-white
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-peacock-green px-4 py-3 text-sm font-extrabold text-white
                            transition hover:brightness-110 active:scale-[0.98]"
               >
                 <IconMessageCircle className="h-4 w-4" />
@@ -318,54 +420,53 @@ export default function CourseDetails() {
               </a>
             </div>
 
-            <div className="mt-4 rounded-2xl border border-peacock-border/60 bg-peacock-bg/70 p-4 dark:border-white/10 dark:bg-white/5">
-              <p className="text-xs text-peacock-muted dark:text-white/60">Installment plans start from</p>
-              <p className="mt-1 text-lg font-extrabold text-peacock-navy dark:text-white">
-                {formatINR(INSTALLMENT_START)}
-              </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+              <MiniStat title="Installment from" value={formatINR(INSTALLMENT_START)} />
+              <MiniStat title="Topics" value={`${syllabus.length || 0}+`} />
             </div>
-          </div>
+          </motion.div>
 
-          {/* What you get */}
-          <div className="rounded-3xl border border-peacock-border/60 bg-white/70 p-6 shadow-soft backdrop-blur-xl dark:bg-slate-950/35 dark:border-white/10">
-            <h3 className="font-extrabold text-peacock-navy dark:text-white">What you get</h3>
-            <ul className="mt-3 space-y-2 text-sm text-peacock-muted dark:text-white/60">
-              <Bullet>
-                Structured modules with practical sessions
-              </Bullet>
-              <Bullet>
-                Mentor support and regular progress checks
-              </Bullet>
-              <Bullet>
-                Career and interview guidance
-              </Bullet>
-            </ul>
-          </div>
-        </aside>
+          
+        </motion.aside>
       </div>
     </div>
   );
 }
 
+/* ----------------------------- Components ----------------------------- */
+
 function Bullet({ children }) {
   return (
-    <li className="flex items-start gap-2">
-      <span className="mt-0.5 rounded-xl bg-peacock-green/15 p-1 text-peacock-green dark:bg-emerald-400/10 dark:text-emerald-200">
+    <li className="flex items-start gap-2 min-w-0">
+      <span className="mt-0.5 shrink-0 rounded-xl bg-peacock-green/15 p-1 text-peacock-green dark:bg-emerald-400/10 dark:text-emerald-200">
         <IconCheckCircle className="h-4 w-4" />
       </span>
-      <span>{children}</span>
+      <span className="min-w-0 break-words">{children}</span>
     </li>
   );
 }
 
 function InfoBox({ label, value, icon }) {
   return (
-    <div className="rounded-2xl border border-peacock-border/60 bg-peacock-bg/60 p-4 dark:border-white/10 dark:bg-white/5">
+    <div className="rounded-2xl border border-peacock-border/60 bg-peacock-bg/60 p-4 dark:border-white/10 dark:bg-white/5 min-w-0">
       <div className="flex items-center gap-2 text-xs uppercase tracking-[0.12em] text-peacock-muted dark:text-white/60">
         {icon}
         <span>{label}</span>
       </div>
-      <div className="mt-2 text-sm font-extrabold text-peacock-navy dark:text-white">{value}</div>
+      <div className="mt-2 text-sm font-extrabold text-peacock-navy dark:text-white break-words">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function MiniStat({ title, value }) {
+  return (
+    <div className="rounded-2xl border border-peacock-border/60 bg-peacock-bg/60 p-4 dark:border-white/10 dark:bg-white/5">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-peacock-muted dark:text-white/60">
+        {title}
+      </p>
+      <p className="mt-1 text-lg font-extrabold text-peacock-navy dark:text-white">{value}</p>
     </div>
   );
 }

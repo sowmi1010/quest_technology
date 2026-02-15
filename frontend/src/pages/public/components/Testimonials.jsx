@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { listPublicFeedback } from "../../../services/feedbackApi";
-import { IconQuote, IconStar } from "../../../components/ui/PublicIcons";
+import { IconFilter, IconQuote, IconSearch, IconStar } from "../../../components/ui/PublicIcons";
 import { getPublicImageUrl } from "../../../utils/publicUi";
+
+const INITIAL_VISIBLE = 6;
+const FEEDBACK_PREVIEW_LIMIT = 180;
+
+const ratingFilters = [
+  { key: 0, label: "All Ratings" },
+  { key: 5, label: "5 Star" },
+  { key: 4, label: "4+ Star" },
+];
 
 function clampRating(v) {
   const n = Number(v || 0);
@@ -10,16 +19,16 @@ function clampRating(v) {
 
 function SkeletonCard() {
   return (
-    <div className="rounded-3xl border border-peacock-border/50 bg-white/70 p-6 shadow-soft backdrop-blur-xl dark:bg-slate-950/35 dark:border-white/10">
+    <div className="rounded-3xl border border-peacock-border/50 bg-white/70 p-6 shadow-soft backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/35">
       <div className="flex items-center gap-4">
-        <div className="h-14 w-14 rounded-full bg-peacock-bg animate-pulse dark:bg-white/10" />
+        <div className="h-14 w-14 animate-pulse rounded-full bg-peacock-bg dark:bg-white/10" />
         <div className="flex-1">
-          <div className="h-4 w-32 rounded bg-peacock-bg animate-pulse dark:bg-white/10" />
-          <div className="mt-2 h-3 w-24 rounded bg-peacock-bg animate-pulse dark:bg-white/10" />
+          <div className="h-4 w-32 animate-pulse rounded bg-peacock-bg dark:bg-white/10" />
+          <div className="mt-2 h-3 w-24 animate-pulse rounded bg-peacock-bg dark:bg-white/10" />
         </div>
       </div>
-      <div className="mt-4 h-4 w-40 rounded bg-peacock-bg animate-pulse dark:bg-white/10" />
-      <div className="mt-3 h-20 rounded-2xl bg-peacock-bg animate-pulse dark:bg-white/10" />
+      <div className="mt-4 h-4 w-40 animate-pulse rounded bg-peacock-bg dark:bg-white/10" />
+      <div className="mt-3 h-20 animate-pulse rounded-2xl bg-peacock-bg dark:bg-white/10" />
     </div>
   );
 }
@@ -27,12 +36,20 @@ function SkeletonCard() {
 export default function Testimonials() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+  const [courseFilter, setCourseFilter] = useState("ALL");
+  const [minRating, setMinRating] = useState(0);
+  const [sortBy, setSortBy] = useState("LATEST");
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
+  const [expandedById, setExpandedById] = useState({});
 
   const load = async () => {
     setLoading(true);
     try {
       const res = await listPublicFeedback();
       setRows(res.data.data || []);
+    } catch {
+      setRows([]);
     } finally {
       setLoading(false);
     }
@@ -49,8 +66,7 @@ export default function Testimonials() {
   }, [rows]);
 
   const breakdown = useMemo(() => {
-    // 5-star distribution
-    const dist = [0, 0, 0, 0, 0]; // index 0 => 1-star, 4 => 5-star
+    const dist = [0, 0, 0, 0, 0];
     for (const r of rows) {
       const star = Math.round(clampRating(r.rating));
       if (star >= 1 && star <= 5) dist[star - 1]++;
@@ -58,96 +74,171 @@ export default function Testimonials() {
     return dist;
   }, [rows]);
 
+  const placedCount = useMemo(
+    () => rows.filter((r) => String(r.company || "").trim().length > 0).length,
+    [rows]
+  );
+
+  const courses = useMemo(() => {
+    const seen = new Set();
+    const list = [];
+
+    for (const row of rows) {
+      const raw = String(row.course || "").trim();
+      if (!raw) continue;
+      const key = raw.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      list.push(raw);
+    }
+
+    return list.sort((a, b) => a.localeCompare(b));
+  }, [rows]);
+
+  const filteredRows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let list = rows;
+
+    if (minRating > 0) {
+      list = list.filter((row) => clampRating(row.rating) >= minRating);
+    }
+
+    if (courseFilter !== "ALL") {
+      list = list.filter((row) => String(row.course || "").trim().toLowerCase() === courseFilter);
+    }
+
+    if (q) {
+      list = list.filter((row) => {
+        const line = [row.name, row.course, row.company, row.feedback]
+          .map((item) => String(item || "").toLowerCase())
+          .join(" ");
+        return line.includes(q);
+      });
+    }
+
+    list = [...list].sort((a, b) => {
+      if (sortBy === "RATING") {
+        const ratingDiff = clampRating(b.rating) - clampRating(a.rating);
+        if (ratingDiff !== 0) return ratingDiff;
+      }
+
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
+
+    return list;
+  }, [rows, query, minRating, courseFilter, sortBy]);
+
+  const visibleRows = useMemo(() => filteredRows.slice(0, visibleCount), [filteredRows, visibleCount]);
+  const hasMore = visibleCount < filteredRows.length;
+
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE);
+  }, [query, courseFilter, minRating, sortBy]);
+
+  const resetFilters = () => {
+    setQuery("");
+    setCourseFilter("ALL");
+    setMinRating(0);
+    setSortBy("LATEST");
+    setVisibleCount(INITIAL_VISIBLE);
+  };
+
+  const toggleExpanded = (id) => {
+    setExpandedById((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
   if (!loading && !rows.length) return null;
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-      {/* Header */}
-      <div className="relative overflow-hidden rounded-3xl border border-peacock-border/60 bg-white/70 p-6 shadow-soft backdrop-blur-xl dark:bg-slate-950/35 dark:border-white/10">
-        {/* Ink Blue & Green glow */}
+    <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 font-modern">
+      <div className="relative overflow-hidden rounded-3xl border border-peacock-border/60 bg-white/70 p-6 shadow-soft backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/35">
         <div className="pointer-events-none absolute -left-24 -top-24 h-64 w-64 rounded-full bg-peacock-blue/15 blur-3xl" />
         <div className="pointer-events-none absolute -right-24 -bottom-24 h-64 w-64 rounded-full bg-peacock-green/15 blur-3xl" />
 
-        <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="inline-flex items-center gap-2 rounded-full border border-peacock-border/60 bg-peacock-bg/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-peacock-muted dark:border-white/10 dark:bg-white/5 dark:text-white/60">
-              Success Stories
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-3xl">
+            <p className="inline-flex items-center gap-2 rounded-full border border-peacock-border/60 bg-peacock-bg/70 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.22em] text-peacock-muted dark:border-white/10 dark:bg-white/5 dark:text-white/60">
+              Student Testimonials
             </p>
 
-            <h2 className="mt-3 text-2xl font-extrabold text-peacock-navy md:text-3xl dark:text-white">
-              Student Testimonials
+            <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-peacock-navy md:text-4xl dark:text-white">
+              Real outcomes from placed learners
             </h2>
-            <p className="mt-1 text-sm text-peacock-muted dark:text-white/60">
-              Feedback from learners and placement achievers.
+
+            <p className="mt-2 text-[13px] font-medium leading-relaxed text-peacock-muted md:text-sm dark:text-white/60">
+              Search by course, sort by rating, and read detailed student feedback.
             </p>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {ratingFilters.map((filter) => {
+                const active = minRating === filter.key;
+                return (
+                  <button
+                    key={filter.key}
+                    type="button"
+                    onClick={() => setMinRating(filter.key)}
+                    className={[
+                      "rounded-full border px-4 py-2 text-xs font-extrabold uppercase tracking-[0.14em] transition",
+                      active
+                        ? "border-peacock-blue bg-peacock-blue text-white"
+                        : "border-peacock-border/70 bg-white/60 text-peacock-navy hover:bg-peacock-bg dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10",
+                    ].join(" ")}
+                  >
+                    {filter.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="grid w-full gap-3 sm:max-w-md sm:grid-cols-2">
+          <div className="grid w-full gap-3 sm:max-w-lg sm:grid-cols-2">
             <div className="rounded-2xl border border-peacock-border/60 bg-peacock-bg/60 p-4 dark:border-white/10 dark:bg-white/5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-peacock-muted dark:text-white/55">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-peacock-muted dark:text-white/60">
                 Average Rating
               </p>
-              <p className="mt-1 text-2xl font-extrabold text-peacock-navy dark:text-white">
-                {loading ? "—" : avg.toFixed(1)}
-                <span className="text-base font-bold text-peacock-muted dark:text-white/55">
-                  {" "}
-                  / 5.0
-                </span>
+              <p className="mt-1 text-2xl font-extrabold tracking-tight text-peacock-navy dark:text-white">
+                {loading ? "--" : avg.toFixed(1)}
+                <span className="text-base font-bold text-peacock-muted dark:text-white/60"> / 5.0</span>
               </p>
-
               <div className="mt-2 flex items-center gap-1 text-amber-500">
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <IconStar
-                    key={i}
-                    className="h-4 w-4"
-                    filled={i < Math.round(avg)}
-                  />
+                  <IconStar key={i} className="h-4 w-4" filled={i < Math.round(avg)} />
                 ))}
               </div>
             </div>
 
             <div className="rounded-2xl border border-peacock-border/60 bg-peacock-bg/60 p-4 dark:border-white/10 dark:bg-white/5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-peacock-muted dark:text-white/55">
-                Total Reviews
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-peacock-muted dark:text-white/60">
+                Total Success Stories
               </p>
-              <p className="mt-1 text-2xl font-extrabold text-peacock-navy dark:text-white">
-                {loading ? "—" : rows.length}
+              <p className="mt-1 text-2xl font-extrabold tracking-tight text-peacock-navy dark:text-white">
+                {loading ? "--" : rows.length}
               </p>
-
-              {!loading && (
-                <div className="mt-2 flex items-center gap-2 text-xs text-peacock-muted dark:text-white/60">
-                  <span className="rounded-full bg-peacock-blue/10 px-2 py-1 font-semibold text-peacock-blue dark:bg-peacock-blue/20 dark:text-sky-200">
-                    Ink Blue
-                  </span>
-                  <span className="rounded-full bg-peacock-green/10 px-2 py-1 font-semibold text-peacock-green dark:bg-peacock-green/20 dark:text-emerald-200">
-                    Green
-                  </span>
-                </div>
-              )}
+              <p className="mt-2 text-xs font-semibold text-peacock-muted dark:text-white/60">
+                Placed learners with company tags: {loading ? "--" : placedCount}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Tiny rating bars (optional but premium) */}
         {!loading && (
           <div className="mt-5 grid gap-2">
-            {([5, 4, 3, 2, 1] || []).map((s, idx) => {
-              const count = breakdown[s - 1] || 0;
-              const pct = rows.length ? Math.round((count / rows.length) * 100) : 0;
+            {[5, 4, 3, 2, 1].map((star) => {
+              const count = breakdown[star - 1] || 0;
+              const percent = rows.length ? Math.round((count / rows.length) * 100) : 0;
+
               return (
-                <div key={s} className="flex items-center gap-3 text-xs">
-                  <div className="w-10 font-semibold text-peacock-navy dark:text-white/80">
-                    {s}★
-                  </div>
+                <div key={star} className="flex items-center gap-3 text-xs">
+                  <div className="w-10 font-semibold text-peacock-navy dark:text-white/85">{star} star</div>
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-peacock-bg dark:bg-white/10">
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-peacock-blue to-peacock-green"
-                      style={{ width: `${pct}%` }}
+                      style={{ width: `${percent}%` }}
                     />
                   </div>
-                  <div className="w-10 text-right text-peacock-muted dark:text-white/60">
-                    {pct}%
-                  </div>
+                  <div className="w-10 text-right text-peacock-muted dark:text-white/65">{percent}%</div>
                 </div>
               );
             })}
@@ -155,23 +246,88 @@ export default function Testimonials() {
         )}
       </div>
 
-      {/* Grid */}
+      {/* FILTERS */}
+      <div className="mt-6 grid gap-3 lg:grid-cols-12">
+        <div className="lg:col-span-5">
+          <div className="flex items-center gap-2 rounded-2xl border border-peacock-border/70 bg-white/70 px-4 py-3 shadow-soft dark:border-white/10 dark:bg-white/5">
+            <IconSearch className="h-4 w-4 text-peacock-muted dark:text-white/50" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by name, course, company..."
+              className="w-full bg-transparent text-[13px] font-semibold tracking-wide text-peacock-navy placeholder:text-peacock-muted outline-none dark:text-white dark:placeholder:text-white/50"
+            />
+          </div>
+        </div>
+
+        <div className="lg:col-span-3">
+          <div className="flex items-center gap-2 rounded-2xl border border-peacock-border/70 bg-white/70 px-3 py-2 shadow-soft dark:border-white/10 dark:bg-white/5">
+            <IconFilter className="h-4 w-4 text-peacock-muted dark:text-white/50" />
+            <select
+              value={courseFilter}
+              onChange={(e) => setCourseFilter(e.target.value)}
+              className="w-full bg-transparent text-[13px] font-extrabold tracking-wide text-peacock-navy outline-none dark:text-white [&>option]:bg-white [&>option]:text-slate-900"
+            >
+              <option value="ALL">All Courses</option>
+              {courses.map((course) => (
+                <option key={course} value={course.toLowerCase()}>
+                  {course}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="lg:col-span-2">
+          <div className="flex items-center gap-2 rounded-2xl border border-peacock-border/70 bg-white/70 px-3 py-2 shadow-soft dark:border-white/10 dark:bg-white/5">
+            <IconFilter className="h-4 w-4 text-peacock-muted dark:text-white/50" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="w-full bg-transparent text-[13px] font-extrabold tracking-wide text-peacock-navy outline-none dark:text-white [&>option]:bg-white [&>option]:text-slate-900"
+            >
+              <option value="LATEST">Latest</option>
+              <option value="RATING">Top Rating</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end lg:col-span-2">
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="rounded-2xl border border-peacock-border/70 bg-white/70 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.14em] text-peacock-navy transition hover:bg-peacock-bg dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+          >
+            Reset Filters
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-3 text-xs font-semibold text-peacock-muted dark:text-white/60">
+        Showing {loading ? 0 : visibleRows.length} of {loading ? 0 : filteredRows.length} testimonials
+      </div>
+
+      {/* GRID */}
       <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {loading
-          ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
-          : rows.map((row, index) => {
+          ? Array.from({ length: INITIAL_VISIBLE }).map((_, i) => <SkeletonCard key={i} />)
+          : visibleRows.map((row, index) => {
               const rating = clampRating(row.rating);
+              const id = String(row._id || `${row.name || "student"}-${index}`);
+              const content = String(row.feedback || "").trim();
+              const isLong = content.length > FEEDBACK_PREVIEW_LIMIT;
+              const expanded = Boolean(expandedById[id]);
+              const shown =
+                isLong && !expanded ? `${content.slice(0, FEEDBACK_PREVIEW_LIMIT).trimEnd()}...` : content;
 
               return (
                 <article
-                  key={row._id}
-                  className="group relative overflow-hidden rounded-3xl border border-peacock-border/60 bg-white/70 p-6 shadow-soft backdrop-blur-xl transition
-                             hover:-translate-y-1 hover:shadow-xl dark:bg-slate-950/35 dark:border-white/10"
+                  key={id}
+                  className="group relative overflow-hidden rounded-3xl border border-peacock-border/60 bg-white/70 p-6 shadow-soft backdrop-blur-xl transition hover:-translate-y-1 hover:shadow-xl dark:border-white/10 dark:bg-slate-950/35"
                   style={{ animationDelay: `${index * 80}ms` }}
                 >
-                  {/* glow */}
-                  <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-peacock-blue/10 blur-3xl opacity-0 transition group-hover:opacity-100" />
-                  <div className="pointer-events-none absolute -left-12 -bottom-12 h-40 w-40 rounded-full bg-peacock-green/10 blur-3xl opacity-0 transition group-hover:opacity-100" />
+                  <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-peacock-blue/10 opacity-0 blur-3xl transition group-hover:opacity-100" />
+                  <div className="pointer-events-none absolute -bottom-12 -left-12 h-40 w-40 rounded-full bg-peacock-green/10 opacity-0 blur-3xl transition group-hover:opacity-100" />
 
                   <span className="absolute right-5 top-5 rounded-2xl border border-peacock-border/60 bg-peacock-bg/70 p-2 text-peacock-blue shadow-soft dark:border-white/10 dark:bg-white/5 dark:text-sky-200">
                     <IconQuote className="h-4 w-4" />
@@ -186,16 +342,16 @@ export default function Testimonials() {
                         loading="lazy"
                       />
                     ) : (
-                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-peacock-bg font-extrabold text-peacock-navy ring-2 ring-peacock-border dark:bg-white/5 dark:text-white dark:ring-white/10">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-peacock-bg text-sm font-extrabold tracking-wide text-peacock-navy ring-2 ring-peacock-border dark:bg-white/5 dark:text-white dark:ring-white/10">
                         {row.name?.charAt(0)?.toUpperCase() || "S"}
                       </div>
                     )}
 
                     <div className="pr-8">
-                      <h3 className="font-extrabold text-peacock-navy dark:text-white">
+                      <h3 className="text-[15px] font-extrabold tracking-tight text-peacock-navy dark:text-white">
                         {row.name || "Student"}
                       </h3>
-                      <p className="text-xs text-peacock-muted dark:text-white/60">
+                      <p className="text-xs font-semibold tracking-wide text-peacock-muted dark:text-white/60">
                         {row.course || "Learner"}
                       </p>
                     </div>
@@ -210,19 +366,48 @@ export default function Testimonials() {
                     </span>
                   </div>
 
-                  <p className="mt-3 rounded-2xl border border-peacock-border/50 bg-peacock-bg/50 p-4 text-sm leading-relaxed text-peacock-ink dark:border-white/10 dark:bg-white/5 dark:text-white/80">
-                    “{row.feedback}”
+                  <p className="mt-3 rounded-2xl border border-peacock-border/50 bg-peacock-bg/50 p-4 text-[15px] leading-7 text-peacock-ink dark:border-white/10 dark:bg-white/5 dark:text-white/80">
+                    "{shown || "Feedback coming soon."}"
                   </p>
 
+                  {isLong && (
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(id)}
+                      className="mt-2 text-xs font-extrabold uppercase tracking-[0.14em] text-peacock-blue transition hover:brightness-90 dark:text-sky-200"
+                    >
+                      {expanded ? "Read Less" : "Read More"}
+                    </button>
+                  )}
+
                   {row.company && (
-                    <div className="mt-3 inline-flex items-center rounded-full bg-gradient-to-r from-peacock-blue/15 to-peacock-green/15 px-3 py-1 text-xs font-extrabold text-peacock-navy dark:text-white/85">
-                      Placed at <span className="ml-1 text-peacock-blue dark:text-sky-200">{row.company}</span>
+                    <div className="mt-3 inline-flex items-center rounded-full bg-gradient-to-r from-peacock-blue/15 to-peacock-green/15 px-3 py-1 text-xs font-extrabold tracking-wide text-peacock-navy dark:text-white/85">
+                      Placed at{" "}
+                      <span className="ml-1 text-peacock-blue dark:text-sky-200">{row.company}</span>
                     </div>
                   )}
                 </article>
               );
             })}
       </div>
+
+      {!loading && filteredRows.length === 0 && (
+        <div className="mt-6 rounded-3xl border border-peacock-border/60 bg-white/70 p-6 text-center text-sm font-semibold text-peacock-muted shadow-soft dark:border-white/10 dark:bg-slate-950/35 dark:text-white/60">
+          No testimonials match these filters.
+        </div>
+      )}
+
+      {!loading && hasMore && (
+        <div className="mt-6 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setVisibleCount((count) => count + INITIAL_VISIBLE)}
+            className="rounded-2xl border border-peacock-border/70 bg-white/70 px-6 py-3 text-sm font-extrabold tracking-wide text-peacock-navy transition hover:-translate-y-0.5 hover:bg-peacock-bg dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+          >
+            Load More Testimonials
+          </button>
+        </div>
+      )}
     </section>
   );
 }

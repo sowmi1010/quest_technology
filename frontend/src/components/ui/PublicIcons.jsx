@@ -43,6 +43,15 @@ export function IconArrowRight(props) {
   );
 }
 
+export function IconArrowLeft(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M19 12H5" />
+      <path d="m11 6-6 6 6 6" />
+    </IconBase>
+  );
+}
+
 export function IconBookOpen(props) {
   return (
     <IconBase {...props}>

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   Wallet,
   RefreshCcw,
+  Download,
   Search,
   Filter,
   ArrowUpDown,
@@ -25,6 +26,15 @@ const PAYMENT_GROUP_TABS = [
   { key: "COMPLETED", label: "Completed Payments" },
 ];
 
+const INACTIVITY_FILTER_OPTIONS = [
+  { key: "ANY", label: "Any Activity" },
+  { key: "30", label: "No payment 30+ days" },
+  { key: "60", label: "No payment 60+ days" },
+  { key: "90", label: "No payment 90+ days" },
+];
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 function clsx(...items) {
   return items.filter(Boolean).join(" ");
 }
@@ -40,6 +50,40 @@ function fmtDate(d) {
   } catch {
     return "-";
   }
+}
+
+function daysSince(dateValue) {
+  if (!dateValue) return null;
+  const parsed = new Date(dateValue);
+  const stamp = parsed.getTime();
+  if (Number.isNaN(stamp)) return null;
+  const diff = Date.now() - stamp;
+  if (diff <= 0) return 0;
+  return Math.floor(diff / DAY_MS);
+}
+
+function fmtDaysAgo(dateValue) {
+  const days = daysSince(dateValue);
+  if (days === null) return "No payment";
+  if (days === 0) return "Today";
+  if (days === 1) return "1 day ago";
+  return `${days} days ago`;
+}
+
+function inactivityTone(days, balance) {
+  if (Number(balance || 0) <= 0) return "text-emerald-200";
+  if (days === null) return "text-rose-200";
+  if (days >= 90) return "text-rose-200";
+  if (days >= 45) return "text-amber-200";
+  return "text-white/80";
+}
+
+function csvCell(value) {
+  const text = String(value ?? "");
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
 }
 
 function groupPillClass(group) {
@@ -90,6 +134,8 @@ export default function PaymentsOverview() {
   const [batchFilter, setBatchFilter] = useState("ALL");
   const [studentGroup, setStudentGroup] = useState("ALL");
   const [paymentGroup, setPaymentGroup] = useState("ALL");
+  const [dueOnly, setDueOnly] = useState(false);
+  const [inactivityFilter, setInactivityFilter] = useState("ANY");
   const [sortBy, setSortBy] = useState("LATEST");
 
   const load = async () => {
@@ -113,7 +159,16 @@ export default function PaymentsOverview() {
     const newPayments = rows.filter((r) => r.paymentGroup === "NEW").length;
     const existingPayments = rows.filter((r) => r.paymentGroup === "EXISTING").length;
     const completedPayments = rows.filter((r) => r.paymentGroup === "COMPLETED").length;
-    return { total, newPayments, existingPayments, completedPayments };
+    const dueStudents = rows.filter((r) => Number(r.balance || 0) > 0).length;
+    const totalOutstanding = rows.reduce((sum, r) => sum + Number(r.balance || 0), 0);
+    return {
+      total,
+      newPayments,
+      existingPayments,
+      completedPayments,
+      dueStudents,
+      totalOutstanding,
+    };
   }, [rows]);
 
   const batches = useMemo(() => {
@@ -128,6 +183,17 @@ export default function PaymentsOverview() {
     if (studentGroup !== "ALL") list = list.filter((r) => r.studentGroup === studentGroup);
     if (paymentGroup !== "ALL") list = list.filter((r) => r.paymentGroup === paymentGroup);
     if (batchFilter !== "ALL") list = list.filter((r) => (r.batchType || "") === batchFilter);
+    if (dueOnly) list = list.filter((r) => Number(r.balance || 0) > 0);
+
+    if (inactivityFilter !== "ANY") {
+      const minDays = Number(inactivityFilter);
+      list = list.filter((r) => {
+        if (Number(r.balance || 0) <= 0) return false;
+        const days = daysSince(r.lastPaymentDate);
+        if (days === null) return true;
+        return days >= minDays;
+      });
+    }
 
     if (q) {
       list = list.filter((r) => {
@@ -147,13 +213,82 @@ export default function PaymentsOverview() {
     list = [...list].sort((a, b) => {
       if (sortBy === "NAME") return String(a.name || "").localeCompare(String(b.name || ""));
       if (sortBy === "BALANCE") return Number(b.balance || 0) - Number(a.balance || 0);
+      if (sortBy === "INACTIVE") {
+        const daysA = daysSince(a.lastPaymentDate);
+        const daysB = daysSince(b.lastPaymentDate);
+        const scoreA = daysA === null ? Number.MAX_SAFE_INTEGER : daysA;
+        const scoreB = daysB === null ? Number.MAX_SAFE_INTEGER : daysB;
+        return scoreB - scoreA;
+      }
       const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return db - da;
     });
 
     return list;
-  }, [rows, query, batchFilter, studentGroup, paymentGroup, sortBy]);
+  }, [rows, query, batchFilter, studentGroup, paymentGroup, dueOnly, inactivityFilter, sortBy]);
+
+  const filteredStats = useMemo(() => {
+    const records = filtered.length;
+    const dueCount = filtered.filter((r) => Number(r.balance || 0) > 0).length;
+    const outstanding = filtered.reduce((sum, r) => sum + Number(r.balance || 0), 0);
+    return { records, dueCount, outstanding };
+  }, [filtered]);
+
+  const resetRecoveryFilters = () => {
+    setDueOnly(false);
+    setInactivityFilter("ANY");
+  };
+
+  const exportCsv = () => {
+    if (!filtered.length) return;
+
+    const header = [
+      "Student ID",
+      "Student Name",
+      "Course",
+      "Category",
+      "Batch",
+      "Student Tab",
+      "Payment Tab",
+      "Total Fee",
+      "Total Paid",
+      "Balance",
+      "Last Payment",
+      "Days Since Last Payment",
+    ];
+
+    const lines = filtered.map((row) => {
+      const days = daysSince(row.lastPaymentDate);
+      const values = [
+        row.studentId,
+        row.name,
+        row.courseTitle,
+        row.categoryName,
+        row.batchType,
+        row.studentGroup,
+        row.paymentGroup,
+        Number(row.totalFee || 0),
+        Number(row.totalPaid || 0),
+        Number(row.balance || 0),
+        row.lastPaymentDate ? fmtDate(row.lastPaymentDate) : "No payment",
+        days === null ? "No payment" : days,
+      ];
+      return values.map(csvCell).join(",");
+    });
+
+    const csv = [header.map(csvCell).join(","), ...lines].join("\n");
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `payments-overview-${stamp}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="p-4 sm:p-6">
@@ -171,23 +306,40 @@ export default function PaymentsOverview() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white/85
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={exportCsv}
+              disabled={!filtered.length}
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white/85
+                       hover:bg-white/10 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download className="h-5 w-5" />
+              Export CSV
+            </button>
+
+            <button
+              type="button"
+              onClick={load}
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white/85
                        hover:bg-white/10 transition active:scale-[0.98]"
-          >
-            <RefreshCcw className="h-5 w-5" />
-            Refresh
-          </button>
+            >
+              <RefreshCcw className="h-5 w-5" />
+              Refresh
+            </button>
+          </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <StatCard title="Students" value={stats.total} tone="sky" />
+          <StatCard title="Due Students" value={stats.dueStudents} tone="amber" />
           <StatCard title="New Payments" value={stats.newPayments} tone="sky" />
           <StatCard title="Existing Payments" value={stats.existingPayments} tone="amber" />
           <StatCard title="Completed Payments" value={stats.completedPayments} tone="emerald" />
         </div>
+        <p className="mt-2 text-xs font-semibold text-white/60">
+          Total outstanding balance: <span className="text-white/90">{money(stats.totalOutstanding)}</span>
+        </p>
 
         <div className="mt-4">
           <div className="mb-2 text-xs font-semibold text-white/55">Student Tabs</div>
@@ -258,8 +410,52 @@ export default function PaymentsOverview() {
                 <option value="LATEST">Latest</option>
                 <option value="NAME">Name (A-Z)</option>
                 <option value="BALANCE">Balance (High-Low)</option>
+                <option value="INACTIVE">Inactive (Longest)</option>
               </select>
             </div>
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setDueOnly((prev) => !prev)}
+            className={clsx(
+              "rounded-2xl border px-4 py-2 text-xs font-bold uppercase tracking-[0.08em] transition",
+              dueOnly
+                ? "border-amber-200/40 bg-amber-500/20 text-amber-100"
+                : "border-white/10 bg-white/5 text-white/75 hover:bg-white/10"
+            )}
+          >
+            {dueOnly ? "Due Only: On" : "Due Only: Off"}
+          </button>
+
+          <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+            <Filter className="h-4 w-4 text-white/50" />
+            <select
+              value={inactivityFilter}
+              onChange={(e) => setInactivityFilter(e.target.value)}
+              className="bg-transparent text-sm font-bold text-white outline-none [&>option]:bg-white [&>option]:text-slate-900"
+            >
+              {INACTIVITY_FILTER_OPTIONS.map((option) => (
+                <option key={option.key} value={option.key}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            type="button"
+            onClick={resetRecoveryFilters}
+            className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-white/75 transition hover:bg-white/10"
+          >
+            Reset Recovery Filters
+          </button>
+
+          <div className="ml-auto text-xs font-semibold text-white/60">
+            Showing {filteredStats.records} | Due {filteredStats.dueCount} | Outstanding{" "}
+            <span className="text-white/90">{money(filteredStats.outstanding)}</span>
           </div>
         </div>
       </div>
@@ -289,57 +485,67 @@ export default function PaymentsOverview() {
                   <th className="p-4 text-left font-semibold text-white/65">Paid</th>
                   <th className="p-4 text-left font-semibold text-white/65">Balance</th>
                   <th className="p-4 text-left font-semibold text-white/65">Last Payment</th>
+                  <th className="p-4 text-left font-semibold text-white/65">Inactive</th>
                   <th className="p-4 text-left font-semibold text-white/65">Action</th>
                 </tr>
               </thead>
 
               <tbody>
-                {filtered.map((r) => (
-                  <tr key={r.studentMongoId} className="border-t border-white/10 hover:bg-white/5 transition">
-                    <td className="p-4">
-                      <div className="font-bold text-white">{r.name || "-"}</div>
-                      <div className="text-xs text-white/50">{r.studentId || "-"}</div>
-                    </td>
-                    <td className="p-4">
-                      <div>{r.courseTitle || "-"}</div>
-                      <div className="text-xs text-white/50">{r.categoryName || "-"}</div>
-                    </td>
-                    <td className="p-4">{r.batchType || "-"}</td>
-                    <td className="p-4">
-                      <span
-                        className={clsx(
-                          "inline-flex rounded-2xl border px-3 py-1.5 text-xs font-bold",
-                          groupPillClass(r.studentGroup)
-                        )}
-                      >
-                        {r.studentGroup}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <span
-                        className={clsx(
-                          "inline-flex rounded-2xl border px-3 py-1.5 text-xs font-bold",
-                          groupPillClass(r.paymentGroup)
-                        )}
-                      >
-                        {r.paymentGroup}
-                      </span>
-                    </td>
-                    <td className="p-4">{money(r.totalFee)}</td>
-                    <td className="p-4 text-emerald-200 font-bold">{money(r.totalPaid)}</td>
-                    <td className="p-4 text-amber-200 font-bold">{money(r.balance)}</td>
-                    <td className="p-4">{fmtDate(r.lastPaymentDate)}</td>
-                    <td className="p-4">
-                      <Link
-                        to={`/admin/students/${r.studentMongoId}/profile`}
-                        className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-white/85 hover:bg-white/10 transition"
-                      >
-                        <UserCircle2 className="h-4 w-4" />
-                        Profile
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                {filtered.map((r) => {
+                  const inactiveDays = daysSince(r.lastPaymentDate);
+                  const inactiveLabel =
+                    Number(r.balance || 0) <= 0 ? "Cleared" : fmtDaysAgo(r.lastPaymentDate);
+
+                  return (
+                    <tr key={r.studentMongoId} className="border-t border-white/10 hover:bg-white/5 transition">
+                      <td className="p-4">
+                        <div className="font-bold text-white">{r.name || "-"}</div>
+                        <div className="text-xs text-white/50">{r.studentId || "-"}</div>
+                      </td>
+                      <td className="p-4">
+                        <div>{r.courseTitle || "-"}</div>
+                        <div className="text-xs text-white/50">{r.categoryName || "-"}</div>
+                      </td>
+                      <td className="p-4">{r.batchType || "-"}</td>
+                      <td className="p-4">
+                        <span
+                          className={clsx(
+                            "inline-flex rounded-2xl border px-3 py-1.5 text-xs font-bold",
+                            groupPillClass(r.studentGroup)
+                          )}
+                        >
+                          {r.studentGroup}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <span
+                          className={clsx(
+                            "inline-flex rounded-2xl border px-3 py-1.5 text-xs font-bold",
+                            groupPillClass(r.paymentGroup)
+                          )}
+                        >
+                          {r.paymentGroup}
+                        </span>
+                      </td>
+                      <td className="p-4">{money(r.totalFee)}</td>
+                      <td className="p-4 text-emerald-200 font-bold">{money(r.totalPaid)}</td>
+                      <td className="p-4 text-amber-200 font-bold">{money(r.balance)}</td>
+                      <td className="p-4">{fmtDate(r.lastPaymentDate)}</td>
+                      <td className={clsx("p-4 font-semibold", inactivityTone(inactiveDays, r.balance))}>
+                        {inactiveLabel}
+                      </td>
+                      <td className="p-4">
+                        <Link
+                          to={`/admin/students/${r.studentMongoId}/profile`}
+                          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-white/85 hover:bg-white/10 transition"
+                        >
+                          <UserCircle2 className="h-4 w-4" />
+                          Profile
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
