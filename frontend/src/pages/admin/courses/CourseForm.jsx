@@ -16,9 +16,83 @@ import {
   Clock,
   IndianRupee,
   Eye,
+  ChevronDown,
+  ChevronUp,
+  PlusCircle,
+  Trash2,
+  BookOpen,
+  FileText,
 } from "lucide-react";
 
 const API_URL = import.meta?.env?.VITE_API_URL || "http://localhost:5000";
+
+function createEmptySyllabusItem() {
+  return { title: "", type: "LESSON" };
+}
+
+function createEmptySyllabusModule(index = 1) {
+  return {
+    title: `Module ${index}`,
+    items: [createEmptySyllabusItem()],
+  };
+}
+
+function toEditableModules(value) {
+  if (!Array.isArray(value)) return [];
+
+  const modules = value
+    .map((module, moduleIdx) => {
+      const moduleTitle = typeof module?.title === "string" ? module.title : "";
+      const items = Array.isArray(module?.items)
+        ? module.items
+            .map((item) => ({
+              title: typeof item?.title === "string" ? item.title : "",
+              type: String(item?.type || "LESSON").toUpperCase() === "PROJECT" ? "PROJECT" : "LESSON",
+            }))
+            .filter((item) => item.title.trim() !== "")
+        : [];
+
+      if (!moduleTitle.trim() && items.length === 0) return null;
+
+      return {
+        title: moduleTitle || `Module ${moduleIdx + 1}`,
+        items: items.length > 0 ? items : [createEmptySyllabusItem()],
+      };
+    })
+    .filter(Boolean);
+
+  return modules;
+}
+
+function normalizeModulesForSave(modules) {
+  if (!Array.isArray(modules)) return [];
+
+  return modules
+    .map((module, moduleIdx) => {
+      const title = String(module?.title || "").trim();
+      const items = Array.isArray(module?.items)
+        ? module.items
+            .map((item) => ({
+              title: String(item?.title || "").trim(),
+              type: String(item?.type || "LESSON").toUpperCase() === "PROJECT" ? "PROJECT" : "LESSON",
+            }))
+            .filter((item) => item.title !== "")
+        : [];
+
+      if (!title && items.length === 0) return null;
+
+      return {
+        title: title || `Module ${moduleIdx + 1}`,
+        items,
+      };
+    })
+    .filter(Boolean);
+}
+
+function moduleLessonCount(module) {
+  if (!Array.isArray(module?.items)) return 0;
+  return module.items.filter((item) => String(item?.title || "").trim() !== "").length;
+}
 
 export default function CourseForm() {
   const { id } = useParams(); // "new" OR courseId
@@ -35,9 +109,11 @@ export default function CourseForm() {
     duration: "",
     totalFee: "",
     installmentStart: "5000",
-    syllabus: "",
     isPublic: true,
   });
+
+  const [syllabusModules, setSyllabusModules] = useState([createEmptySyllabusModule(1)]);
+  const [expandedModuleIndex, setExpandedModuleIndex] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -54,11 +130,15 @@ export default function CourseForm() {
     );
   };
 
-  const syllabusChips = useMemo(() => {
-    const raw = (form.syllabus || "").split(",").map((x) => x.trim()).filter(Boolean);
-    // unique
-    return Array.from(new Set(raw));
-  }, [form.syllabus]);
+  const syllabusSummary = useMemo(() => {
+    const cleanModules = normalizeModulesForSave(syllabusModules);
+    const topicCount = cleanModules.reduce((sum, module) => sum + module.items.length, 0);
+
+    return {
+      moduleCount: cleanModules.length,
+      topicCount,
+    };
+  }, [syllabusModules]);
 
   const loadCategories = async () => {
     try {
@@ -75,6 +155,7 @@ export default function CourseForm() {
 
   const loadCourse = async () => {
     if (!isEdit) return;
+
     const res = await adminGetCourse(id);
     const c = res?.data?.data;
 
@@ -84,9 +165,30 @@ export default function CourseForm() {
       duration: c?.duration || "",
       totalFee: String(c?.totalFee ?? ""),
       installmentStart: String(c?.installmentStart ?? 5000),
-      syllabus: Array.isArray(c?.syllabus) ? c.syllabus.join(", ") : (c?.syllabus || ""),
       isPublic: !!c?.isPublic,
     });
+
+    const structured = toEditableModules(c?.syllabusModules);
+    const legacy = Array.isArray(c?.syllabus)
+      ? [
+          {
+            title: "Module 1",
+            items: c.syllabus
+              .map((topic) => String(topic || "").trim())
+              .filter(Boolean)
+              .map((title) => ({ title, type: "LESSON" })),
+          },
+        ].filter((module) => module.items.length > 0)
+      : [];
+
+    const nextModules = structured.length > 0
+      ? structured
+      : legacy.length > 0
+        ? legacy
+        : [createEmptySyllabusModule(1)];
+
+    setSyllabusModules(nextModules);
+    setExpandedModuleIndex(0);
 
     setPreview(c?.imageUrl ? `${API_URL}${c.imageUrl}` : "");
   };
@@ -123,6 +225,73 @@ export default function CourseForm() {
     setPreview("");
   };
 
+  const addModule = () => {
+    setSyllabusModules((prev) => {
+      const next = [...prev, createEmptySyllabusModule(prev.length + 1)];
+      setExpandedModuleIndex(next.length - 1);
+      return next;
+    });
+  };
+
+  const removeModule = (moduleIdx) => {
+    setSyllabusModules((prev) => {
+      const next = prev.filter((_, idx) => idx !== moduleIdx);
+      return next.length > 0 ? next : [createEmptySyllabusModule(1)];
+    });
+
+    setExpandedModuleIndex((prev) => {
+      if (prev === moduleIdx) return 0;
+      if (prev > moduleIdx) return prev - 1;
+      return prev;
+    });
+  };
+
+  const updateModuleField = (moduleIdx, field, value) => {
+    setSyllabusModules((prev) =>
+      prev.map((module, idx) =>
+        idx === moduleIdx ? { ...module, [field]: value } : module
+      )
+    );
+  };
+
+  const addItem = (moduleIdx) => {
+    setSyllabusModules((prev) =>
+      prev.map((module, idx) =>
+        idx === moduleIdx
+          ? { ...module, items: [...(module.items || []), createEmptySyllabusItem()] }
+          : module
+      )
+    );
+  };
+
+  const updateItem = (moduleIdx, itemIdx, field, value) => {
+    setSyllabusModules((prev) =>
+      prev.map((module, idx) => {
+        if (idx !== moduleIdx) return module;
+
+        const nextItems = (module.items || []).map((item, innerIdx) =>
+          innerIdx === itemIdx ? { ...item, [field]: value } : item
+        );
+
+        return { ...module, items: nextItems };
+      })
+    );
+  };
+
+  const removeItem = (moduleIdx, itemIdx) => {
+    setSyllabusModules((prev) =>
+      prev.map((module, idx) => {
+        if (idx !== moduleIdx) return module;
+
+        const nextItems = (module.items || []).filter((_, innerIdx) => innerIdx !== itemIdx);
+        return {
+          ...module,
+          items: nextItems.length > 0 ? nextItems : [createEmptySyllabusItem()],
+        };
+      })
+    );
+  };
+
   const validate = () => {
     if (!form.title.trim()) return "Course title is required.";
     if (!form.categoryId || form.categoryId.length < 10) return "Please select a valid category.";
@@ -148,6 +317,9 @@ export default function CourseForm() {
     setSaving(true);
 
     try {
+      const cleanModules = normalizeModulesForSave(syllabusModules);
+      const flatTopics = cleanModules.flatMap((module) => module.items.map((item) => item.title));
+
       // Build FormData for multer
       const fd = new FormData();
       fd.append("title", form.title);
@@ -155,7 +327,8 @@ export default function CourseForm() {
       fd.append("duration", form.duration);
       fd.append("totalFee", form.totalFee);
       fd.append("installmentStart", form.installmentStart);
-      fd.append("syllabus", form.syllabus);
+      fd.append("syllabus", flatTopics.join(", "));
+      fd.append("syllabusModules", JSON.stringify(cleanModules));
       fd.append("isPublic", String(form.isPublic));
       if (imageFile) fd.append("image", imageFile);
 
@@ -326,38 +499,137 @@ export default function CourseForm() {
               </label>
             </div>
 
-            {/* Syllabus */}
-            <label className="grid gap-2">
-              <span className="text-xs font-semibold text-white/60">
-                Syllabus (comma separated)
-              </span>
-              <textarea
-                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none
-                           focus:ring-2 focus:ring-sky-400/40 focus:border-sky-400/30 transition"
-                placeholder="HTML, CSS, JS, React"
-                name="syllabus"
-                value={form.syllabus}
-                onChange={onChange}
-                rows={4}
-              />
-              {syllabusChips.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {syllabusChips.slice(0, 12).map((t) => (
-                    <span
-                      key={t}
-                      className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/80"
-                    >
-                      {t}
-                    </span>
-                  ))}
-                  {syllabusChips.length > 12 && (
-                    <span className="text-xs text-white/50">
-                      +{syllabusChips.length - 12} more
-                    </span>
-                  )}
+            {/* Syllabus Builder */}
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-white/60">
+                    Structured Syllabus
+                  </div>
+                  <div className="mt-1 text-sm text-white/70">
+                    Create modules and add lessons or projects.
+                  </div>
                 </div>
-              )}
-            </label>
+
+                <button
+                  type="button"
+                  onClick={addModule}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white/85 hover:bg-white/10 transition"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  Add Module
+                </button>
+              </div>
+
+              <div className="mt-3 text-xs text-white/50">
+                {syllabusSummary.moduleCount} modules, {syllabusSummary.topicCount} syllabus items
+              </div>
+
+              <div className="mt-3 space-y-3">
+                {syllabusModules.map((module, moduleIdx) => {
+                  const isOpen = expandedModuleIndex === moduleIdx;
+                  const lessonCount = moduleLessonCount(module);
+
+                  return (
+                    <div key={`module-${moduleIdx}`} className="rounded-2xl border border-white/10 bg-slate-950/20">
+                      <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedModuleIndex(isOpen ? -1 : moduleIdx)}
+                          className="inline-flex flex-1 items-center gap-2 text-left"
+                        >
+                          {isOpen ? (
+                            <ChevronUp className="h-4 w-4 text-white/60" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-white/60" />
+                          )}
+                          <span className="text-sm font-semibold text-white">
+                            {module.title?.trim() || `Module ${moduleIdx + 1}`}
+                          </span>
+                        </button>
+
+                        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-white/65">
+                          {lessonCount} items
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => removeModule(moduleIdx)}
+                          className="inline-flex items-center gap-1 rounded-xl border border-rose-300/25 bg-rose-500/10 px-2 py-1 text-[11px] font-bold text-rose-200 hover:bg-rose-500/15 transition"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Remove
+                        </button>
+                      </div>
+
+                      {isOpen && (
+                        <div className="space-y-3 p-3">
+                          <label className="grid gap-1">
+                            <span className="text-[11px] font-semibold text-white/60">Module Title</span>
+                            <input
+                              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/35 outline-none focus:ring-2 focus:ring-sky-400/40"
+                              placeholder={`Module ${moduleIdx + 1}`}
+                              value={module.title}
+                              onChange={(e) => updateModuleField(moduleIdx, "title", e.target.value)}
+                            />
+                          </label>
+
+                          <div className="space-y-2">
+                            {module.items?.map((item, itemIdx) => {
+                              const isProject = item.type === "PROJECT";
+                              return (
+                                <div
+                                  key={`module-${moduleIdx}-item-${itemIdx}`}
+                                  className="grid gap-2 rounded-xl border border-white/10 bg-white/5 p-2 sm:grid-cols-[minmax(0,1fr)_130px_auto]"
+                                >
+                                  <div className="relative">
+                                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/45">
+                                      {isProject ? <FileText className="h-4 w-4" /> : <BookOpen className="h-4 w-4" />}
+                                    </span>
+                                    <input
+                                      className="w-full rounded-xl border border-white/10 bg-slate-950/20 pl-10 pr-3 py-2 text-sm text-white placeholder:text-white/35 outline-none focus:ring-2 focus:ring-sky-400/40"
+                                      placeholder="Lesson or project name"
+                                      value={item.title}
+                                      onChange={(e) => updateItem(moduleIdx, itemIdx, "title", e.target.value)}
+                                    />
+                                  </div>
+
+                                  <select
+                                    value={item.type}
+                                    onChange={(e) => updateItem(moduleIdx, itemIdx, "type", e.target.value)}
+                                    className="rounded-xl border border-white/10 bg-slate-950/20 px-3 py-2 text-xs font-bold text-white outline-none [&>option]:bg-white [&>option]:text-slate-900"
+                                  >
+                                    <option value="LESSON">LESSON</option>
+                                    <option value="PROJECT">PROJECT</option>
+                                  </select>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => removeItem(moduleIdx, itemIdx)}
+                                    className="inline-flex items-center justify-center rounded-xl border border-rose-300/25 bg-rose-500/10 px-3 py-2 text-xs font-bold text-rose-200 hover:bg-rose-500/15 transition"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => addItem(moduleIdx)}
+                            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white/80 hover:bg-white/10 transition"
+                          >
+                            <PlusCircle className="h-4 w-4" />
+                            Add Item
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
 
             {/* Public toggle */}
             <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">

@@ -404,7 +404,7 @@ function CourseCard({ course, index, compact }) {
             to={`/courses/${course._id}`}
             className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-peacock-blue to-peacock-green px-4 py-3 text-sm font-extrabold text-white transition hover:brightness-110 active:scale-[0.98]"
           >
-            View Details
+            View Syllabus
             <IconArrowRight className="h-4 w-4" />
           </Link>
         </div>

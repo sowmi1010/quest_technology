@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { listPublicFeedback } from "../../../services/feedbackApi";
-import { IconFilter, IconQuote, IconSearch, IconStar } from "../../../components/ui/PublicIcons";
+import {
+  IconFilter,
+  IconQuote,
+  IconSearch,
+  IconStar,
+} from "../../../components/ui/PublicIcons";
 import { getPublicImageUrl } from "../../../utils/publicUi";
 
 const INITIAL_VISIBLE = 6;
@@ -76,7 +81,7 @@ export default function Testimonials() {
 
   const placedCount = useMemo(
     () => rows.filter((r) => String(r.company || "").trim().length > 0).length,
-    [rows]
+    [rows],
   );
 
   const courses = useMemo(() => {
@@ -104,7 +109,12 @@ export default function Testimonials() {
     }
 
     if (courseFilter !== "ALL") {
-      list = list.filter((row) => String(row.course || "").trim().toLowerCase() === courseFilter);
+      list = list.filter(
+        (row) =>
+          String(row.course || "")
+            .trim()
+            .toLowerCase() === courseFilter,
+      );
     }
 
     if (q) {
@@ -130,7 +140,10 @@ export default function Testimonials() {
     return list;
   }, [rows, query, minRating, courseFilter, sortBy]);
 
-  const visibleRows = useMemo(() => filteredRows.slice(0, visibleCount), [filteredRows, visibleCount]);
+  const visibleRows = useMemo(
+    () => filteredRows.slice(0, visibleCount),
+    [filteredRows, visibleCount],
+  );
   const hasMore = visibleCount < filteredRows.length;
 
   useEffect(() => {
@@ -153,164 +166,14 @@ export default function Testimonials() {
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 font-modern">
-      <div className="relative overflow-hidden rounded-3xl border border-peacock-border/60 bg-white/70 p-6 shadow-soft backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/35">
-        <div className="pointer-events-none absolute -left-24 -top-24 h-64 w-64 rounded-full bg-peacock-blue/15 blur-3xl" />
-        <div className="pointer-events-none absolute -right-24 -bottom-24 h-64 w-64 rounded-full bg-peacock-green/15 blur-3xl" />
-
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-3xl">
-            <p className="inline-flex items-center gap-2 rounded-full border border-peacock-border/60 bg-peacock-bg/70 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.22em] text-peacock-muted dark:border-white/10 dark:bg-white/5 dark:text-white/60">
-              Student Testimonials
-            </p>
-
-            <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-peacock-navy md:text-4xl dark:text-white">
-              Real outcomes from placed learners
-            </h2>
-
-            <p className="mt-2 text-[13px] font-medium leading-relaxed text-peacock-muted md:text-sm dark:text-white/60">
-              Search by course, sort by rating, and read detailed student feedback.
-            </p>
-
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              {ratingFilters.map((filter) => {
-                const active = minRating === filter.key;
-                return (
-                  <button
-                    key={filter.key}
-                    type="button"
-                    onClick={() => setMinRating(filter.key)}
-                    className={[
-                      "rounded-full border px-4 py-2 text-xs font-extrabold uppercase tracking-[0.14em] transition",
-                      active
-                        ? "border-peacock-blue bg-peacock-blue text-white"
-                        : "border-peacock-border/70 bg-white/60 text-peacock-navy hover:bg-peacock-bg dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10",
-                    ].join(" ")}
-                  >
-                    {filter.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="grid w-full gap-3 sm:max-w-lg sm:grid-cols-2">
-            <div className="rounded-2xl border border-peacock-border/60 bg-peacock-bg/60 p-4 dark:border-white/10 dark:bg-white/5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-peacock-muted dark:text-white/60">
-                Average Rating
-              </p>
-              <p className="mt-1 text-2xl font-extrabold tracking-tight text-peacock-navy dark:text-white">
-                {loading ? "--" : avg.toFixed(1)}
-                <span className="text-base font-bold text-peacock-muted dark:text-white/60"> / 5.0</span>
-              </p>
-              <div className="mt-2 flex items-center gap-1 text-amber-500">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <IconStar key={i} className="h-4 w-4" filled={i < Math.round(avg)} />
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-peacock-border/60 bg-peacock-bg/60 p-4 dark:border-white/10 dark:bg-white/5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-peacock-muted dark:text-white/60">
-                Total Success Stories
-              </p>
-              <p className="mt-1 text-2xl font-extrabold tracking-tight text-peacock-navy dark:text-white">
-                {loading ? "--" : rows.length}
-              </p>
-              <p className="mt-2 text-xs font-semibold text-peacock-muted dark:text-white/60">
-                Placed learners with company tags: {loading ? "--" : placedCount}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {!loading && (
-          <div className="mt-5 grid gap-2">
-            {[5, 4, 3, 2, 1].map((star) => {
-              const count = breakdown[star - 1] || 0;
-              const percent = rows.length ? Math.round((count / rows.length) * 100) : 0;
-
-              return (
-                <div key={star} className="flex items-center gap-3 text-xs">
-                  <div className="w-10 font-semibold text-peacock-navy dark:text-white/85">{star} star</div>
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-peacock-bg dark:bg-white/10">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-peacock-blue to-peacock-green"
-                      style={{ width: `${percent}%` }}
-                    />
-                  </div>
-                  <div className="w-10 text-right text-peacock-muted dark:text-white/65">{percent}%</div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* FILTERS */}
-      <div className="mt-6 grid gap-3 lg:grid-cols-12">
-        <div className="lg:col-span-5">
-          <div className="flex items-center gap-2 rounded-2xl border border-peacock-border/70 bg-white/70 px-4 py-3 shadow-soft dark:border-white/10 dark:bg-white/5">
-            <IconSearch className="h-4 w-4 text-peacock-muted dark:text-white/50" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by name, course, company..."
-              className="w-full bg-transparent text-[13px] font-semibold tracking-wide text-peacock-navy placeholder:text-peacock-muted outline-none dark:text-white dark:placeholder:text-white/50"
-            />
-          </div>
-        </div>
-
-        <div className="lg:col-span-3">
-          <div className="flex items-center gap-2 rounded-2xl border border-peacock-border/70 bg-white/70 px-3 py-2 shadow-soft dark:border-white/10 dark:bg-white/5">
-            <IconFilter className="h-4 w-4 text-peacock-muted dark:text-white/50" />
-            <select
-              value={courseFilter}
-              onChange={(e) => setCourseFilter(e.target.value)}
-              className="w-full bg-transparent text-[13px] font-extrabold tracking-wide text-peacock-navy outline-none dark:text-white [&>option]:bg-white [&>option]:text-slate-900"
-            >
-              <option value="ALL">All Courses</option>
-              {courses.map((course) => (
-                <option key={course} value={course.toLowerCase()}>
-                  {course}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="lg:col-span-2">
-          <div className="flex items-center gap-2 rounded-2xl border border-peacock-border/70 bg-white/70 px-3 py-2 shadow-soft dark:border-white/10 dark:bg-white/5">
-            <IconFilter className="h-4 w-4 text-peacock-muted dark:text-white/50" />
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="w-full bg-transparent text-[13px] font-extrabold tracking-wide text-peacock-navy outline-none dark:text-white [&>option]:bg-white [&>option]:text-slate-900"
-            >
-              <option value="LATEST">Latest</option>
-              <option value="RATING">Top Rating</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-end lg:col-span-2">
-          <button
-            type="button"
-            onClick={resetFilters}
-            className="rounded-2xl border border-peacock-border/70 bg-white/70 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.14em] text-peacock-navy transition hover:bg-peacock-bg dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
-          >
-            Reset Filters
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-3 text-xs font-semibold text-peacock-muted dark:text-white/60">
-        Showing {loading ? 0 : visibleRows.length} of {loading ? 0 : filteredRows.length} testimonials
-      </div>
+      <div className="pointer-events-none absolute -left-24 -top-24 h-64 w-64 rounded-full bg-peacock-blue/15 blur-3xl" />
 
       {/* GRID */}
       <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {loading
-          ? Array.from({ length: INITIAL_VISIBLE }).map((_, i) => <SkeletonCard key={i} />)
+          ? Array.from({ length: INITIAL_VISIBLE }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))
           : visibleRows.map((row, index) => {
               const rating = clampRating(row.rating);
               const id = String(row._id || `${row.name || "student"}-${index}`);
@@ -318,7 +181,9 @@ export default function Testimonials() {
               const isLong = content.length > FEEDBACK_PREVIEW_LIMIT;
               const expanded = Boolean(expandedById[id]);
               const shown =
-                isLong && !expanded ? `${content.slice(0, FEEDBACK_PREVIEW_LIMIT).trimEnd()}...` : content;
+                isLong && !expanded
+                  ? `${content.slice(0, FEEDBACK_PREVIEW_LIMIT).trimEnd()}...`
+                  : content;
 
               return (
                 <article
@@ -359,7 +224,11 @@ export default function Testimonials() {
 
                   <div className="mt-4 flex items-center gap-1 text-amber-500">
                     {Array.from({ length: 5 }).map((_, i) => (
-                      <IconStar key={i} className="h-4 w-4" filled={i < rating} />
+                      <IconStar
+                        key={i}
+                        className="h-4 w-4"
+                        filled={i < rating}
+                      />
                     ))}
                     <span className="ml-2 text-xs font-semibold text-peacock-muted dark:text-white/55">
                       {rating.toFixed(1)}
@@ -383,7 +252,9 @@ export default function Testimonials() {
                   {row.company && (
                     <div className="mt-3 inline-flex items-center rounded-full bg-gradient-to-r from-peacock-blue/15 to-peacock-green/15 px-3 py-1 text-xs font-extrabold tracking-wide text-peacock-navy dark:text-white/85">
                       Placed at{" "}
-                      <span className="ml-1 text-peacock-blue dark:text-sky-200">{row.company}</span>
+                      <span className="ml-1 text-peacock-blue dark:text-sky-200">
+                        {row.company}
+                      </span>
                     </div>
                   )}
                 </article>
