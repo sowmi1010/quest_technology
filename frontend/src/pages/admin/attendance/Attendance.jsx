@@ -6,7 +6,8 @@ import {
   saveAttendance,
 } from "../../../services/attendanceApi";
 
-const API_URL = import.meta?.env?.VITE_API_URL || "http://localhost:5000";
+import { resolveAssetUrl } from "../../../utils/apiConfig";
+
 
 export default function Attendance() {
   const [batchType, setBatchType] = useState("Mon/Wed/Fri");
@@ -239,7 +240,7 @@ export default function Attendance() {
                         <div className="h-10 w-10 overflow-hidden rounded-2xl border border-white/10 bg-white/10">
                           {s.photoUrl ? (
                             <img
-                              src={`${API_URL}${s.photoUrl}`}
+                              src={resolveAssetUrl(s.photoUrl)}
                               alt={s.name}
                               className="h-full w-full object-cover"
                               loading="lazy"
@@ -289,3 +290,4 @@ export default function Attendance() {
     </div>
   );
 }
+

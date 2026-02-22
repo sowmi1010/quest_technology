@@ -1,5 +1,6 @@
 import Feedback from "../models/Feedback.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { getUploadedFileUrl } from "../utils/uploadFileUrl.js";
 
 /* =============================
    Create feedback
@@ -11,7 +12,7 @@ export const createFeedback = asyncHandler(async (req, res) => {
     return res.status(400).json({ ok: false, message: "name and feedback are required" });
   }
 
-  const imageUrl = req.file ? `/uploads/feedback/${req.file.filename}` : "";
+  const imageUrl = getUploadedFileUrl(req.file);
 
   const doc = await Feedback.create({
     name,
@@ -60,7 +61,7 @@ export const updateFeedback = asyncHandler(async (req, res) => {
   };
 
   if (rating) update.rating = Number(rating);
-  if (req.file) update.imageUrl = `/uploads/feedback/${req.file.filename}`;
+  if (req.file) update.imageUrl = getUploadedFileUrl(req.file);
 
   const updated = await Feedback.findByIdAndUpdate(req.params.id, update, { new: true });
   if (!updated) return res.status(404).json({ ok: false, message: "Not found" });

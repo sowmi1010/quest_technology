@@ -1,19 +1,4 @@
-import { api } from "../services/api";
-
-const FALLBACK_IMAGE_HOST = "http://localhost:5000";
-
-const getApiOrigin = () => {
-  const base = api?.defaults?.baseURL;
-  if (!base || typeof base !== "string") return FALLBACK_IMAGE_HOST;
-
-  try {
-    return new URL(base).origin;
-  } catch {
-    return FALLBACK_IMAGE_HOST;
-  }
-};
-
-export const API_ORIGIN = getApiOrigin();
+import { API_ORIGIN } from "./apiConfig";
 
 export const PUBLIC_CONTACT = {
   phoneDisplay: "+91 98765 43210",

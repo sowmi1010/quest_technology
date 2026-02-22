@@ -4,7 +4,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { createFeedback, getFeedback, updateFeedback } from "../../../services/feedbackApi";
 import { ArrowLeft, Image as ImageIcon, Save, Star, Trash2 } from "lucide-react";
 
-const API_URL = import.meta?.env?.VITE_API_URL || "http://localhost:5000";
+import { resolveAssetUrl } from "../../../utils/apiConfig";
+
 
 function StarRating({ value, onChange }) {
   const v = Number(value) || 0;
@@ -86,7 +87,7 @@ export default function FeedbackForm() {
           rating: Number(d?.rating || 5),
         });
 
-        setPreview(d?.imageUrl ? `${API_URL}${d.imageUrl}` : "");
+        setPreview(resolveAssetUrl(d?.imageUrl || ""));
       } catch {
         showToast("Failed to load feedback", "error");
       } finally {
@@ -368,3 +369,4 @@ export default function FeedbackForm() {
     </div>
   );
 }
+

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { getAttendanceReport } from "../../../services/attendanceApi";
 
-const API_URL = import.meta?.env?.VITE_API_URL || "http://localhost:5000";
+import { resolveAssetUrl } from "../../../utils/apiConfig";
+
 
 function monthToRange(monthStr) {
   // monthStr = "2026-02"
@@ -316,7 +317,7 @@ export default function AttendanceReport() {
                         <div className="h-10 w-10 overflow-hidden rounded-2xl border border-white/10 bg-white/10">
                           {r.photoUrl ? (
                             <img
-                              src={`${API_URL}${r.photoUrl}`}
+                              src={resolveAssetUrl(r.photoUrl)}
                               alt={r.name}
                               className="h-full w-full object-cover"
                               loading="lazy"
@@ -386,3 +387,4 @@ export default function AttendanceReport() {
     </div>
   );
 }
+

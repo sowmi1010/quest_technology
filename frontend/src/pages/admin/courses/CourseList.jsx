@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { adminDeleteCourse, adminGetCourses } from "../../../services/courseApi";
 import { RefreshCcw, Search, Filter, Plus, Pencil, Trash2 } from "lucide-react";
 
-const API_URL = import.meta?.env?.VITE_API_URL || "http://localhost:5000";
+import { resolveAssetUrl } from "../../../utils/apiConfig";
+
 
 function money(v) {
   const n = Number(v);
@@ -25,6 +26,8 @@ export default function CourseList() {
     try {
       const res = await adminGetCourses();
       setRows(res?.data?.data || []);
+    } catch {
+      setRows([]);
     } finally {
       setLoading(false);
     }
@@ -191,7 +194,7 @@ export default function CourseList() {
                     <td className="p-4">
                       {c.imageUrl ? (
                         <img
-                          src={`${API_URL}${c.imageUrl}`}
+                          src={resolveAssetUrl(c.imageUrl)}
                           alt={c.title}
                           className="h-10 w-16 object-cover rounded-2xl border border-white/10"
                           loading="lazy"
@@ -270,3 +273,4 @@ export default function CourseList() {
     </div>
   );
 }
+

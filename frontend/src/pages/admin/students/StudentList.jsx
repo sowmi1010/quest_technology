@@ -21,7 +21,8 @@ import AdminToast from "../../../components/admin/common/AdminToast";
 import ConfirmModal from "../../../components/admin/common/ConfirmModal";
 import SummaryCard from "../../../components/admin/common/SummaryCard";
 
-const API_URL = import.meta?.env?.VITE_API_URL || "http://localhost:5000";
+import { resolveAssetUrl } from "../../../utils/apiConfig";
+
 
 function clsx(...a) {
   return a.filter(Boolean).join(" ");
@@ -383,7 +384,7 @@ export default function StudentList() {
                     <td className="p-4">
                       {s.photoUrl ? (
                         <img
-                          src={`${API_URL}${s.photoUrl}`}
+                          src={resolveAssetUrl(s.photoUrl)}
                           alt={s.name}
                           className="h-10 w-10 rounded-2xl object-cover border border-white/10"
                         />
@@ -517,3 +518,4 @@ export default function StudentList() {
     </div>
   );
 }
+

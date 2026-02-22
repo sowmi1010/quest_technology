@@ -22,7 +22,8 @@ import {
   adminUpdateStudent,
 } from "../../../services/studentApi";
 
-const API_URL = import.meta?.env?.VITE_API_URL || "http://localhost:5000";
+import { resolveAssetUrl } from "../../../utils/apiConfig";
+
 
 function clsx(...a) {
   return a.filter(Boolean).join(" ");
@@ -258,7 +259,7 @@ export default function StudentForm() {
       const selectedCourse = courseList.find((c) => String(c._id) === String(selectedCourseId));
       setSelectedCategoryId(getCourseCategoryId(selectedCourse));
 
-      setPreview(s?.photoUrl ? `${API_URL}${s.photoUrl}` : "");
+      setPreview(resolveAssetUrl(s?.photoUrl || ""));
     } catch {
       showToast("Failed to load student details", "error");
     } finally {
@@ -642,3 +643,4 @@ function StudentFormSkeleton() {
     </div>
   );
 }
+

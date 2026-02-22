@@ -1,17 +1,36 @@
 import multer from "multer";
-import fs from "fs";
-import path from "path";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
+import cloudinary, { isCloudinaryConfigured } from "../config/cloudinary.js";
 
-function makeStorage(folder) {
-  return multer.diskStorage({
-    destination: (req, file, cb) => {
-      fs.mkdirSync(folder, { recursive: true });
-      cb(null, folder);
-    },
-    filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname);
-      const name = file.originalname.replace(ext, "").replace(/\s+/g, "-").toLowerCase();
-      cb(null, `${name}-${Date.now()}${ext}`);
+function sanitizeName(value = "") {
+  return String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "file";
+}
+
+function buildStorage(folder) {
+  return new CloudinaryStorage({
+    cloudinary,
+    params: async (req, file) => {
+      if (!isCloudinaryConfigured) {
+        throw new Error("Cloudinary is not configured. Check CLOUDINARY_* env values.");
+      }
+
+      const [type] = String(file.mimetype || "").split("/");
+      if (type !== "image") {
+        throw new Error("Only image uploads are supported");
+      }
+
+      const originalBase = file.originalname?.replace(/\.[^/.]+$/, "") || "file";
+
+      return {
+        folder: `quest-technology/${folder}`,
+        resource_type: "image",
+        allowed_formats: ["jpg", "jpeg", "png", "webp"],
+        public_id: `${sanitizeName(originalBase)}-${Date.now()}`,
+      };
     },
   });
 }
@@ -22,26 +41,25 @@ function fileFilter(req, file, cb) {
 }
 
 export const uploadCourseImage = multer({
-  storage: makeStorage("uploads/courses"),
+  storage: buildStorage("courses"),
   fileFilter,
   limits: { fileSize: 2 * 1024 * 1024 },
 }).single("image");
 
 export const uploadStudentPhoto = multer({
-  storage: makeStorage("uploads/students"),
+  storage: buildStorage("students"),
   fileFilter,
   limits: { fileSize: 2 * 1024 * 1024 },
 }).single("photo");
 
-/* ✅ ADD THIS EXPORT */
 export const uploadFeedbackImage = multer({
-  storage: makeStorage("uploads/feedback"),
+  storage: buildStorage("feedback"),
   fileFilter,
   limits: { fileSize: 2 * 1024 * 1024 },
 }).single("image");
 
 export const uploadGalleryImage = multer({
-  storage: makeStorage("uploads/gallery"),
+  storage: buildStorage("gallery"),
   fileFilter,
   limits: { fileSize: 4 * 1024 * 1024 },
 }).single("image");

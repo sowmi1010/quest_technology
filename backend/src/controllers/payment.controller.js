@@ -74,9 +74,10 @@ export const addPayment = asyncHandler(async (req, res) => {
 export const getStudentPayments = asyncHandler(async (req, res) => {
   const { studentId } = req.params;
 
-  const payments = await Payment.find({ studentId }).sort({ date: -1 });
-
   const student = await Student.findById(studentId).populate("courseId");
+  if (!student) return res.status(404).json({ ok: false, message: "Student not found" });
+
+  const payments = await Payment.find({ studentId }).sort({ date: -1 });
 
   const totalFee = student.courseId?.totalFee || 0;
 

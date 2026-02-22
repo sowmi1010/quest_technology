@@ -1,6 +1,10 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import hpp from "hpp";
 import morgan from "morgan";
+import path from "path";
+import { fileURLToPath } from "url";
 
 import authRoutes from "./routes/auth.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
@@ -15,19 +19,75 @@ import feedbackRoutes from "./routes/feedback.routes.js";
 import galleryRoutes from "./routes/gallery.routes.js";
 import performanceRoutes from "./routes/performance.routes.js";
 
+function normalizeOrigin(value = "") {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
 
+  try {
+    const parsed = new URL(raw);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return raw.replace(/\/+$/, "");
+  }
+}
+
+function getAllowedOrigins() {
+  const envList = String(process.env.CORS_ORIGINS || "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+
+  const configured = [
+    ...envList,
+    process.env.PUBLIC_APP_URL,
+  ]
+    .map(normalizeOrigin)
+    .filter(Boolean);
+
+  // Safe default for local dev if env is not set.
+  const fallbackDev = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+  ];
+
+  const finalList = configured.length ? configured : fallbackDev;
+  return [...new Set(finalList)];
+}
 
 const app = express();
+const allowedOrigins = getAllowedOrigins();
 
-app.use(cors());
-app.use(express.json());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }),
+);
+app.use(hpp());
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Allow non-browser clients (curl/Postman) that do not send Origin.
+      if (!origin) return callback(null, true);
+
+      const normalized = normalizeOrigin(origin);
+      if (allowedOrigins.includes(normalized)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(morgan("dev"));
-import path from "path";
-import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Legacy/local files (including existing certificates) are still served here.
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 app.get("/api/health", (req, res) => res.json({ ok: true, message: "API running" }));

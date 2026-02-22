@@ -2,6 +2,7 @@ import { z } from "zod";
 import Gallery from "../models/Gallery.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { GALLERY_CATEGORIES } from "../utils/gallery.constants.js";
+import { getUploadedFileUrl } from "../utils/uploadFileUrl.js";
 
 const categoryEnum = z.enum(GALLERY_CATEGORIES);
 
@@ -24,7 +25,7 @@ export const createGalleryItem = asyncHandler(async (req, res) => {
     description: body.description || "",
     category: body.category,
     isPublic: body.isPublic ?? true,
-    imageUrl: `/uploads/gallery/${req.file.filename}`,
+    imageUrl: getUploadedFileUrl(req.file),
   });
 
   res.status(201).json({ ok: true, message: "Gallery item created", data: item });
@@ -76,7 +77,7 @@ export const updateGalleryItem = asyncHandler(async (req, res) => {
   const update = { ...body };
 
   if (req.file) {
-    update.imageUrl = `/uploads/gallery/${req.file.filename}`;
+    update.imageUrl = getUploadedFileUrl(req.file);
   }
 
   const item = await Gallery.findByIdAndUpdate(req.params.id, update, { new: true });

@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit";
 import fs from "fs";
+import path from "path";
 import QRCode from "qrcode";
 
 function formatDate(d) {
@@ -32,12 +33,41 @@ function drawInfoLine(doc, { x, y, label, value, width }) {
     .text(String(value || "-"), x + 90, y, { width: width - 90 });
 }
 
+async function getStudentPhotoBuffer(source) {
+  const raw = String(source || "").trim();
+  if (!raw) return null;
+
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const response = await fetch(raw);
+      if (!response.ok) return null;
+
+      const bytes = await response.arrayBuffer();
+      return Buffer.from(bytes);
+    } catch {
+      return null;
+    }
+  }
+
+  const localPath = path.isAbsolute(raw)
+    ? raw
+    : path.join(process.cwd(), raw.replace(/^\/+/, ""));
+
+  if (!fs.existsSync(localPath)) return null;
+
+  try {
+    return fs.readFileSync(localPath);
+  } catch {
+    return null;
+  }
+}
+
 export async function generateCertificatePDF({
   outPath,
   certNo,
   verifyUrl,
   studentName,
-  studentPhotoAbsPath,
+  studentPhotoSource,
   courseTitle,
   startDate,
   endDate,
@@ -45,6 +75,9 @@ export async function generateCertificatePDF({
   performance,
   remarks,
 }) {
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  const studentPhotoBuffer = await getStudentPhotoBuffer(studentPhotoSource);
+
   const doc = new PDFDocument({ size: "A4", margin: 0 });
   const stream = fs.createWriteStream(outPath);
   doc.pipe(stream);
@@ -147,9 +180,9 @@ export async function generateCertificatePDF({
 
   doc.roundedRect(photoX, photoY, photoW, photoH, 8).strokeColor("#D6E5FA").stroke();
 
-  if (studentPhotoAbsPath && fs.existsSync(studentPhotoAbsPath)) {
+  if (studentPhotoBuffer) {
     try {
-      doc.image(studentPhotoAbsPath, photoX + 4, photoY + 4, {
+      doc.image(studentPhotoBuffer, photoX + 4, photoY + 4, {
         fit: [photoW - 8, photoH - 8],
         align: "center",
         valign: "center",

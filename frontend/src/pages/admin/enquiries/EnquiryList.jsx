@@ -35,6 +35,8 @@ export default function EnquiryList() {
     try {
       const res = await getEnquiries();
       setRows(res?.data?.data || []);
+    } catch {
+      setRows([]);
     } finally {
       setLoading(false);
     }

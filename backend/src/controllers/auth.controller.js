@@ -7,7 +7,32 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 const signToken = (adminId) =>
   jwt.sign({ adminId }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
+function getProvidedSetupKey(req) {
+  const headerKey = req.get("x-admin-setup-key");
+  const bodyKey = req.body?.setupKey;
+  return String(headerKey || bodyKey || "").trim();
+}
+
 export const registerAdmin = asyncHandler(async (req, res) => {
+  // Registration is open only for first admin bootstrap.
+  // After at least one admin exists, require ADMIN_SETUP_KEY.
+  const hasAdmin = await Admin.exists({});
+  if (hasAdmin) {
+    const setupKey = String(process.env.ADMIN_SETUP_KEY || "").trim();
+    const providedKey = getProvidedSetupKey(req);
+
+    if (!setupKey) {
+      return res.status(403).json({
+        ok: false,
+        message: "Admin registration is disabled after initial setup",
+      });
+    }
+
+    if (providedKey !== setupKey) {
+      return res.status(403).json({ ok: false, message: "Invalid admin setup key" });
+    }
+  }
+
   // (Use only for first time, later you can disable this route)
   const schema = z.object({
     name: z.string().min(2),

@@ -5,7 +5,8 @@ import { ArrowLeft, Image as ImageIcon, Save, Trash2 } from "lucide-react";
 import { adminCreateGallery, adminGetGallery, adminUpdateGallery } from "../../../services/galleryApi";
 import { GALLERY_CATEGORY_OPTIONS } from "../../../utils/galleryCategories";
 
-const API_URL = import.meta?.env?.VITE_API_URL || "http://localhost:5000";
+import { resolveAssetUrl } from "../../../utils/apiConfig";
+
 
 export default function GalleryForm() {
   const { id } = useParams();
@@ -51,7 +52,7 @@ export default function GalleryForm() {
           isPublic: Boolean(row?.isPublic ?? true),
         });
 
-        const filePreview = row?.imageUrl ? `${API_URL}${row.imageUrl}` : "";
+        const filePreview = resolveAssetUrl(row?.imageUrl || "");
         setServerPreview(filePreview);
         setPreview(filePreview);
       } catch (error) {
@@ -289,3 +290,4 @@ export default function GalleryForm() {
     </div>
   );
 }
+

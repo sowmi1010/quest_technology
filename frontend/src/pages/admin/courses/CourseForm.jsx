@@ -24,7 +24,8 @@ import {
   FileText,
 } from "lucide-react";
 
-const API_URL = import.meta?.env?.VITE_API_URL || "http://localhost:5000";
+import { resolveAssetUrl } from "../../../utils/apiConfig";
+
 
 function createEmptySyllabusItem() {
   return { title: "", type: "LESSON" };
@@ -190,7 +191,7 @@ export default function CourseForm() {
     setSyllabusModules(nextModules);
     setExpandedModuleIndex(0);
 
-    setPreview(c?.imageUrl ? `${API_URL}${c.imageUrl}` : "");
+    setPreview(resolveAssetUrl(c?.imageUrl || ""));
   };
 
   useEffect(() => {
@@ -716,3 +717,4 @@ export default function CourseForm() {
     </div>
   );
 }
+

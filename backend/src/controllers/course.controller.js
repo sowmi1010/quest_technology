@@ -2,6 +2,7 @@ import { z } from "zod";
 import Course from "../models/Course.js";
 import Student from "../models/Student.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { getUploadedFileUrl } from "../utils/uploadFileUrl.js";
 
 const SYLLABUS_ITEM_TYPES = new Set(["LESSON", "PROJECT"]);
 
@@ -109,7 +110,7 @@ export const createCourse = asyncHandler(async (req, res) => {
 
   const flatTopics = flattenSyllabusModules(modules);
 
-  const imageUrl = req.file ? `/uploads/courses/${req.file.filename}` : "";
+  const imageUrl = getUploadedFileUrl(req.file);
 
   const course = await Course.create({
     title: body.title,
@@ -182,7 +183,7 @@ export const updateCourse = asyncHandler(async (req, res) => {
   }
 
   if (req.file) {
-    update.imageUrl = `/uploads/courses/${req.file.filename}`;
+    update.imageUrl = getUploadedFileUrl(req.file);
   }
 
   const course = await Course.findByIdAndUpdate(req.params.id, update, { new: true });

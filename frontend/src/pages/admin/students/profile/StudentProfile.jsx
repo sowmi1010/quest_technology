@@ -15,7 +15,8 @@ import AttendanceCalendar from "./components/AttendanceCalendar";
 import PaymentsTab from "./components/PaymentsTab";
 import PerformanceTab from "./components/PerformanceTab";
 
-const API_URL = import.meta?.env?.VITE_API_URL || "http://localhost:5000";
+import { resolveAssetUrl } from "../../../../utils/apiConfig";
+
 
 const TABS = [
   { key: "attendance", label: "Attendance", icon: CalendarDays },
@@ -48,7 +49,7 @@ export default function StudentProfile() {
 
   const photo = useMemo(() => {
     if (!student?.photoUrl) return "";
-    return `${API_URL}${student.photoUrl}`;
+    return resolveAssetUrl(student.photoUrl);
   }, [student]);
 
   if (loading) return <StudentProfileSkeleton />;
@@ -271,3 +272,4 @@ function StudentProfileSkeleton() {
     </div>
   );
 }
+

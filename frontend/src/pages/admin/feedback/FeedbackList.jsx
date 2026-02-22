@@ -13,7 +13,8 @@ import {
 import AdminToast from "../../../components/admin/common/AdminToast";
 import ConfirmModal from "../../../components/admin/common/ConfirmModal";
 
-const API_URL = import.meta?.env?.VITE_API_URL || "http://localhost:5000";
+import { resolveAssetUrl } from "../../../utils/apiConfig";
+
 
 function fmtDate(d) {
   try {
@@ -261,7 +262,7 @@ export default function FeedbackList() {
                     <td className="p-4">
                       {r.imageUrl ? (
                         <img
-                          src={`${API_URL}${r.imageUrl}`}
+                          src={resolveAssetUrl(r.imageUrl)}
                           alt={r.name}
                           className="h-10 w-10 rounded-2xl object-cover border border-white/10"
                           loading="lazy"
@@ -391,4 +392,5 @@ export default function FeedbackList() {
     </div>
   );
 }
+
 

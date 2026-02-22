@@ -12,7 +12,8 @@ import {
   User,
 } from "lucide-react";
 
-const API_URL = import.meta?.env?.VITE_API_URL || "http://localhost:5000";
+import { resolveAssetUrl } from "../../../utils/apiConfig";
+
 
 export default function IssueCertificate() {
   const navigate = useNavigate();
@@ -117,7 +118,7 @@ export default function IssueCertificate() {
       showToast("Certificate generated successfully", "success");
 
       if (cert?.pdfUrl) {
-        window.open(`${API_URL}${cert.pdfUrl}`, "_blank", "noreferrer");
+        window.open(resolveAssetUrl(cert.pdfUrl), "_blank", "noreferrer");
       }
 
       navigate("/admin/certificates", { replace: true });
@@ -372,3 +373,4 @@ export default function IssueCertificate() {
     </div>
   );
 }
+

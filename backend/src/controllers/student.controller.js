@@ -2,6 +2,15 @@ import { z } from "zod";
 import Student from "../models/Student.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateStudentId } from "../utils/generateId.js";
+import { getNextStudentSerial } from "../utils/studentIdSequence.js";
+import { getUploadedFileUrl } from "../utils/uploadFileUrl.js";
+
+function isStudentIdDuplicateError(err) {
+  return (
+    err?.code === 11000 &&
+    (err?.keyPattern?.studentId || err?.keyValue?.studentId)
+  );
+}
 
 export const createStudent = asyncHandler(async (req, res) => {
   const schema = z.object({
@@ -16,26 +25,35 @@ export const createStudent = asyncHandler(async (req, res) => {
   });
 
   const body = schema.parse(req.body);
+  const photoUrl = getUploadedFileUrl(req.file);
 
-  const count = await Student.countDocuments();
-  const studentId = generateStudentId(count + 1);
+  // Retry on duplicate studentId in case legacy/manual data created gaps/collisions.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const serial = await getNextStudentSerial();
+    const studentId = generateStudentId(serial);
 
-  const photoUrl = req.file ? `/uploads/students/${req.file.filename}` : "";
+    try {
+      const student = await Student.create({
+        studentId,
+        name: body.name,
+        courseId: body.courseId,
+        fatherName: body.fatherName || "",
+        fatherNumber: body.fatherNumber || "",
+        studentNumber: body.studentNumber || "",
+        address: body.address || "",
+        joiningDate: body.joiningDate ? new Date(body.joiningDate) : new Date(),
+        batchType: body.batchType || "",
+        photoUrl,
+      });
 
-  const student = await Student.create({
-    studentId,
-    name: body.name,
-    courseId: body.courseId,
-    fatherName: body.fatherName || "",
-    fatherNumber: body.fatherNumber || "",
-    studentNumber: body.studentNumber || "",
-    address: body.address || "",
-    joiningDate: body.joiningDate ? new Date(body.joiningDate) : new Date(),
-    batchType: body.batchType || "",
-    photoUrl,
-  });
-
-  res.status(201).json({ ok: true, message: "Student added", data: student });
+      return res.status(201).json({ ok: true, message: "Student added", data: student });
+    } catch (err) {
+      if (isStudentIdDuplicateError(err) && attempt < 2) {
+        continue;
+      }
+      throw err;
+    }
+  }
 });
 
 export const listStudents = asyncHandler(async (req, res) => {
@@ -69,7 +87,7 @@ export const updateStudent = asyncHandler(async (req, res) => {
   const update = { ...body };
 
   if (body.joiningDate) update.joiningDate = new Date(body.joiningDate);
-  if (req.file) update.photoUrl = `/uploads/students/${req.file.filename}`;
+  if (req.file) update.photoUrl = getUploadedFileUrl(req.file);
 
   const student = await Student.findByIdAndUpdate(req.params.id, update, { new: true });
   if (!student) return res.status(404).json({ ok: false, message: "Not found" });
