@@ -186,7 +186,10 @@ export const updateCourse = asyncHandler(async (req, res) => {
     update.imageUrl = getUploadedFileUrl(req.file);
   }
 
-  const course = await Course.findByIdAndUpdate(req.params.id, update, { new: true });
+  const course = await Course.findByIdAndUpdate(req.params.id, update, {
+    new: true,
+    runValidators: true,
+  });
   if (!course) return res.status(404).json({ ok: false, message: "Not found" });
 
   res.json({ ok: true, message: "Course updated", data: course });

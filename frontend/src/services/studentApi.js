@@ -1,6 +1,6 @@
 import { api } from "./api";
 
-export const adminGetStudents = () => api.get("/students");
+export const adminGetStudents = (params = {}) => api.get("/students", { params });
 export const adminGetStudent = (id) => api.get(`/students/${id}`);
 
 export const adminCreateStudent = (formData) =>

@@ -28,10 +28,6 @@ function clsx(...a) {
   return a.filter(Boolean).join(" ");
 }
 
-function fmt(v) {
-  return String(v || "").trim();
-}
-
 function isCurrentMonth(dateValue, refDate = new Date()) {
   if (!dateValue) return false;
   const d = new Date(dateValue);
@@ -57,9 +53,26 @@ export default function StudentList() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1,
+    hasPrev: false,
+    hasNext: false,
+  });
+  const [summary, setSummary] = useState({
+    total: 0,
+    newStudents: 0,
+    existingStudents: 0,
+    completedStudents: 0,
+  });
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
 
   // UI state
   const [q, setQ] = useState("");
+  const [keyword, setKeyword] = useState("");
   const [batch, setBatch] = useState("ALL");
   const [studentGroup, setStudentGroup] = useState("ALL");
   const [status, setStatus] = useState("ALL");
@@ -77,10 +90,56 @@ export default function StudentList() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await adminGetStudents();
-      setRows(res?.data?.data || []);
+      const params = {
+        page,
+        limit,
+        keyword: keyword || undefined,
+        batch: batch !== "ALL" ? batch : undefined,
+        studentGroup: studentGroup !== "ALL" ? studentGroup : undefined,
+        status: status !== "ALL" ? status : undefined,
+        sort: sort === "NAME" ? "name:asc" : "createdAt:desc",
+      };
+
+      const res = await adminGetStudents(params);
+      const nextRows = res?.data?.data || [];
+      const nextPagination = res?.data?.pagination || {
+        page,
+        limit,
+        total: nextRows.length,
+        totalPages: 1,
+        hasPrev: false,
+        hasNext: false,
+      };
+      const nextSummary = res?.data?.summary || {
+        total: nextRows.length,
+        newStudents: nextRows.filter((s) => getStudentGroup(s) === "NEW").length,
+        existingStudents: nextRows.filter((s) => getStudentGroup(s) === "EXISTING").length,
+        completedStudents: nextRows.filter((s) => getStudentGroup(s) === "COMPLETED").length,
+      };
+
+      setRows(nextRows);
+      setPagination(nextPagination);
+      setSummary(nextSummary);
+
+      if (nextPagination.page && nextPagination.page !== page) {
+        setPage(nextPagination.page);
+      }
     } catch {
       setRows([]);
+      setPagination({
+        page: 1,
+        limit,
+        total: 0,
+        totalPages: 1,
+        hasPrev: false,
+        hasNext: false,
+      });
+      setSummary({
+        total: 0,
+        newStudents: 0,
+        existingStudents: 0,
+        completedStudents: 0,
+      });
       showToast("Failed to load students", "error");
     } finally {
       setLoading(false);
@@ -88,8 +147,20 @@ export default function StudentList() {
   };
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setKeyword(q.trim());
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [q]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [keyword, batch, studentGroup, status, sort, limit]);
+
+  useEffect(() => {
     load();
-  }, []);
+  }, [page, limit, keyword, batch, studentGroup, status, sort]);
 
   const askDelete = (s) => {
     setDel({ open: true, id: s._id, name: s.name, studentId: s.studentId });
@@ -111,58 +182,21 @@ export default function StudentList() {
   };
 
   const stats = useMemo(() => {
-    const total = rows.length;
-    const now = new Date();
-    const newStudents = rows.filter((s) => getStudentGroup(s, now) === "NEW").length;
-    const existingStudents = rows.filter((s) => getStudentGroup(s, now) === "EXISTING").length;
-    const completedStudents = rows.filter((s) => getStudentGroup(s, now) === "COMPLETED").length;
-    return { total, newStudents, existingStudents, completedStudents };
-  }, [rows]);
-
-  const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    const now = new Date();
-
-    let list = rows;
-
-    if (studentGroup !== "ALL") list = list.filter((s) => getStudentGroup(s, now) === studentGroup);
-    if (batch !== "ALL") list = list.filter((s) => (s.batchType || "") === batch);
-    if (status !== "ALL") list = list.filter((s) => (s.status || "ACTIVE") === status);
-
-    if (needle) {
-      list = list.filter((s) => {
-        const hay = [
-          s.studentId,
-          s.name,
-          s.studentNumber,
-          s.fatherNumber,
-          s.batchType,
-          s.courseId?.title,
-        ]
-          .map((x) => String(x || "").toLowerCase())
-          .join(" ");
-        return hay.includes(needle);
-      });
-    }
-
-    if (sort === "NAME") {
-      list = [...list].sort((a, b) => fmt(a.name).localeCompare(fmt(b.name)));
-    } else {
-      // NEWEST: if createdAt exists use it else keep as-is
-      list = [...list].sort((a, b) => {
-        const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return db - da;
-      });
-    }
-
-    return list;
-  }, [rows, q, studentGroup, batch, status, sort]);
+    return {
+      total: Number(summary.total || 0),
+      newStudents: Number(summary.newStudents || 0),
+      existingStudents: Number(summary.existingStudents || 0),
+      completedStudents: Number(summary.completedStudents || 0),
+    };
+  }, [summary]);
 
   const batches = useMemo(() => {
     const set = new Set(rows.map((r) => r.batchType).filter(Boolean));
+    if (batch !== "ALL") set.add(batch);
     return ["ALL", ...Array.from(set)];
-  }, [rows]);
+  }, [rows, batch]);
+
+  const filtered = rows;
 
   const currentMonthLabel = useMemo(
     () => new Date().toLocaleString("en-US", { month: "long", year: "numeric" }),
@@ -471,6 +505,47 @@ export default function StudentList() {
             </table>
           </div>
         )}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/75">
+        <div>
+          Total students: <span className="font-bold text-white">{pagination.total}</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={limit}
+            onChange={(e) => setLimit(Number(e.target.value) || 20)}
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-extrabold text-white outline-none [&>option]:bg-white [&>option]:text-slate-900"
+          >
+            <option value={10}>10 / page</option>
+            <option value={20}>20 / page</option>
+            <option value={50}>50 / page</option>
+            <option value={100}>100 / page</option>
+          </select>
+
+          <button
+            type="button"
+            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+            disabled={loading || !pagination.hasPrev}
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-extrabold text-white/85 transition hover:bg-white/10 disabled:opacity-50"
+          >
+            Prev
+          </button>
+
+          <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-extrabold text-white">
+            Page {pagination.page} / {pagination.totalPages}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setPage((prev) => prev + 1)}
+            disabled={loading || !pagination.hasNext}
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-extrabold text-white/85 transition hover:bg-white/10 disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
       </div>
 
       {/* Delete Modal */}

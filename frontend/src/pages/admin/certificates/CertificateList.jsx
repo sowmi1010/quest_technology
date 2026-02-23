@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { adminDeleteCertificate, adminListCertificates } from "../../../services/certificateApi";
 import { FileText, Search, Copy, Check, Trash2 } from "lucide-react";
@@ -20,8 +20,20 @@ export default function CertificateList() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1,
+    hasPrev: false,
+    hasNext: false,
+  });
 
   const [query, setQuery] = useState("");
+  const [keyword, setKeyword] = useState("");
+  const [sort, setSort] = useState("issueDate:desc");
   const [copiedId, setCopiedId] = useState("");
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [confirmDel, setConfirmDel] = useState({ open: false, id: "", certNo: "", studentName: "" });
@@ -38,12 +50,37 @@ export default function CertificateList() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await adminListCertificates();
+      const res = await adminListCertificates({
+        page,
+        limit,
+        keyword: keyword || undefined,
+        sort,
+      });
       const list = res?.data?.data || [];
-      list.sort((a, b) => new Date(b.issueDate || 0) - new Date(a.issueDate || 0));
+      const nextPagination = res?.data?.pagination || {
+        page,
+        limit,
+        total: list.length,
+        totalPages: 1,
+        hasPrev: false,
+        hasNext: false,
+      };
+
       setRows(list);
+      setPagination(nextPagination);
+      if (nextPagination.page && nextPagination.page !== page) {
+        setPage(nextPagination.page);
+      }
     } catch {
       setRows([]);
+      setPagination({
+        page: 1,
+        limit,
+        total: 0,
+        totalPages: 1,
+        hasPrev: false,
+        hasNext: false,
+      });
       showToast("Failed to load certificates", "error");
     } finally {
       setLoading(false);
@@ -51,20 +88,22 @@ export default function CertificateList() {
   };
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setKeyword(query.trim());
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [keyword, limit, sort]);
+
+  useEffect(() => {
     load();
-  }, []);
+  }, [page, limit, keyword, sort]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return rows;
-
-    return rows.filter((c) => {
-      const certNo = String(c.certNo || "");
-      const student = String(c.studentId?.name || "");
-      const course = String(c.courseId?.title || "");
-      return `${certNo} ${student} ${course}`.toLowerCase().includes(q);
-    });
-  }, [rows, query]);
+  const filtered = rows;
 
   const onCopy = async (certNo) => {
     try {
@@ -131,15 +170,30 @@ export default function CertificateList() {
 
       {/* Search */}
       <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-        <div className="relative max-w-xl">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search cert no / student / course..."
-            className="w-full rounded-2xl border border-white/10 bg-white/5 pl-12 pr-4 py-3 text-sm text-white placeholder:text-white/35 outline-none
+        <div className="grid gap-3 lg:grid-cols-12">
+          <div className="relative max-w-xl lg:col-span-8">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search cert no / student / course..."
+              className="w-full rounded-2xl border border-white/10 bg-white/5 pl-12 pr-4 py-3 text-sm text-white placeholder:text-white/35 outline-none
                        focus:ring-2 focus:ring-sky-400/40 focus:border-sky-400/30 transition"
-          />
+            />
+          </div>
+
+          <div className="lg:col-span-4">
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white outline-none [&>option]:bg-white [&>option]:text-slate-900"
+            >
+              <option value="issueDate:desc">Issued (Newest)</option>
+              <option value="issueDate:asc">Issued (Oldest)</option>
+              <option value="certNo:asc">Cert No (A-Z)</option>
+              <option value="certNo:desc">Cert No (Z-A)</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -247,6 +301,47 @@ export default function CertificateList() {
             </table>
           </div>
         )}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/75">
+        <div>
+          Total certificates: <span className="font-bold text-white">{pagination.total}</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={limit}
+            onChange={(e) => setLimit(Number(e.target.value) || 20)}
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-extrabold text-white outline-none [&>option]:bg-white [&>option]:text-slate-900"
+          >
+            <option value={10}>10 / page</option>
+            <option value={20}>20 / page</option>
+            <option value={50}>50 / page</option>
+            <option value={100}>100 / page</option>
+          </select>
+
+          <button
+            type="button"
+            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+            disabled={loading || !pagination.hasPrev}
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-extrabold text-white/85 transition hover:bg-white/10 disabled:opacity-50"
+          >
+            Prev
+          </button>
+
+          <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-extrabold text-white">
+            Page {pagination.page} / {pagination.totalPages}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setPage((prev) => prev + 1)}
+            disabled={loading || !pagination.hasNext}
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-extrabold text-white/85 transition hover:bg-white/10 disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
       </div>
 
       <ConfirmModal

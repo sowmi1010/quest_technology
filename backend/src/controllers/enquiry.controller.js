@@ -42,7 +42,10 @@ export const updateEnquiryStatus = asyncHandler(async (req, res) => {
 
   const update = schema.parse(req.body);
 
-  const enquiry = await Enquiry.findByIdAndUpdate(req.params.id, update, { new: true });
+  const enquiry = await Enquiry.findByIdAndUpdate(req.params.id, update, {
+    new: true,
+    runValidators: true,
+  });
   if (!enquiry) return res.status(404).json({ ok: false, message: "Not found" });
 
   res.json({ ok: true, message: "Updated", data: enquiry });

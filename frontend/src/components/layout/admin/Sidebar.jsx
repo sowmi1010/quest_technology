@@ -1,4 +1,6 @@
 import { NavLink, useNavigate } from "react-router-dom";
+import { api } from "../../../services/api";
+import { clearAuthStorage } from "../../../utils/auth";
 import {
   LayoutDashboard,
   PhoneCall,
@@ -15,9 +17,13 @@ import {
 export default function Sidebar({ collapsed = false }) {
   const navigate = useNavigate();
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("admin");
+  const logout = async () => {
+    try {
+      await api.post("/auth/logout");
+    } catch {
+      // ignore and clear client state anyway
+    }
+    clearAuthStorage();
     navigate("/admin/login", { replace: true });
   };
 

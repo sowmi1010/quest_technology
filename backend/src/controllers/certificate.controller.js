@@ -7,8 +7,52 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateCertNo } from "../utils/certNo.js";
 import { generateCertificatePDF } from "../utils/certificatePdf.js";
 import { getNextCertificateSerial } from "../utils/certificateNoSequence.js";
+import { parseOptionalIsoDateInput } from "../utils/dateValidation.js";
+import {
+  buildPagination,
+  escapeRegex,
+  parsePaginationParams,
+  parseSortToken,
+} from "../utils/listQuery.js";
 
-const PUBLIC_APP_URL = String(process.env.PUBLIC_APP_URL || "http://localhost:5173").replace(/\/+$/, "");
+const CERTIFICATE_UPLOAD_PREFIX = "/uploads/certificates/";
+const CERTIFICATE_UPLOAD_DIR = path.resolve(
+  process.cwd(),
+  "uploads",
+  "certificates"
+);
+
+function resolvePublicAppUrl() {
+  const configured = String(process.env.PUBLIC_APP_URL || "").trim().replace(/\/+$/, "");
+  if (configured) return configured;
+
+  const isProd = String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
+  if (isProd) {
+    throw new Error("PUBLIC_APP_URL is required in production.");
+  }
+
+  return "http://localhost:5173";
+}
+
+const PUBLIC_APP_URL = resolvePublicAppUrl();
+
+function resolveSafeCertificatePdfPath(pdfUrl) {
+  const normalizedUrl = String(pdfUrl || "").trim();
+  if (!normalizedUrl.startsWith(CERTIFICATE_UPLOAD_PREFIX)) return null;
+
+  const relativePath = normalizedUrl.replace(/^\/+/, "");
+  const absolutePath = path.resolve(process.cwd(), relativePath);
+  const relativeToUploadDir = path.relative(CERTIFICATE_UPLOAD_DIR, absolutePath);
+
+  if (
+    relativeToUploadDir.startsWith("..") ||
+    path.isAbsolute(relativeToUploadDir)
+  ) {
+    return null;
+  }
+
+  return absolutePath;
+}
 
 function isCertNoDuplicateError(err) {
   return (
@@ -27,6 +71,27 @@ export const issueCertificate = asyncHandler(async (req, res) => {
     performance,
     remarks,
   } = req.body;
+
+  const parsedStartDate = parseOptionalIsoDateInput(startDate, "startDate");
+  if (!parsedStartDate.ok) {
+    return res.status(400).json({ ok: false, message: parsedStartDate.message });
+  }
+
+  const parsedEndDate = parseOptionalIsoDateInput(endDate, "endDate");
+  if (!parsedEndDate.ok) {
+    return res.status(400).json({ ok: false, message: parsedEndDate.message });
+  }
+
+  const parsedIssueDate = parseOptionalIsoDateInput(issueDate, "issueDate");
+  if (!parsedIssueDate.ok) {
+    return res.status(400).json({ ok: false, message: parsedIssueDate.message });
+  }
+
+  const normalizedStartDate = parsedStartDate.provided ? parsedStartDate.value : null;
+  const normalizedEndDate = parsedEndDate.provided ? parsedEndDate.value : null;
+  const normalizedIssueDate = parsedIssueDate.provided
+    ? parsedIssueDate.value
+    : new Date();
 
   const student = await Student.findById(studentId);
   if (!student) return res.status(404).json({ ok: false, message: "Student not found" });
@@ -55,9 +120,9 @@ export const issueCertificate = asyncHandler(async (req, res) => {
         certNo,
         studentId: student._id,
         courseId: course._id,
-        startDate: startDate ? new Date(startDate) : null,
-        endDate: endDate ? new Date(endDate) : null,
-        issueDate: issueDate ? new Date(issueDate) : new Date(),
+        startDate: normalizedStartDate,
+        endDate: normalizedEndDate,
+        issueDate: normalizedIssueDate,
         performance: performance || "",
         remarks: remarks || "",
         pdfUrl,
@@ -70,9 +135,9 @@ export const issueCertificate = asyncHandler(async (req, res) => {
         studentName: student.name,
         studentPhotoSource,
         courseTitle: course.title,
-        startDate,
-        endDate,
-        issueDate: issueDate || new Date(),
+        startDate: normalizedStartDate,
+        endDate: normalizedEndDate,
+        issueDate: normalizedIssueDate,
         performance,
         remarks,
       });
@@ -101,12 +166,121 @@ export const issueCertificate = asyncHandler(async (req, res) => {
 });
 
 export const listCertificates = asyncHandler(async (req, res) => {
-  const list = await Certificate.find()
-    .populate("studentId", "name studentId photoUrl")
-    .populate("courseId", "title")
-    .sort({ createdAt: -1 });
+  const { page, limit, skip } = parsePaginationParams(req.query, {
+    defaultLimit: 20,
+    maxLimit: 100,
+  });
 
-  res.json({ ok: true, data: list });
+  const keyword = String(req.query.keyword || "").trim();
+  const sort = parseSortToken(
+    req.query.sort,
+    {
+      newest: { issueDate: -1, createdAt: -1, _id: -1 },
+      oldest: { issueDate: 1, createdAt: 1, _id: 1 },
+      "issueDate:desc": { issueDate: -1, createdAt: -1, _id: -1 },
+      "issueDate:asc": { issueDate: 1, createdAt: 1, _id: 1 },
+      "createdAt:desc": { createdAt: -1, _id: -1 },
+      "createdAt:asc": { createdAt: 1, _id: 1 },
+      "certNo:asc": { certNo: 1, _id: -1 },
+      "certNo:desc": { certNo: -1, _id: -1 },
+    },
+    "issueDate:desc"
+  );
+
+  const pipeline = [
+    {
+      $lookup: {
+        from: "students",
+        localField: "studentId",
+        foreignField: "_id",
+        as: "student",
+      },
+    },
+    {
+      $unwind: {
+        path: "$student",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $lookup: {
+        from: "courses",
+        localField: "courseId",
+        foreignField: "_id",
+        as: "course",
+      },
+    },
+    {
+      $unwind: {
+        path: "$course",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+  ];
+
+  if (keyword) {
+    const keywordRegex = new RegExp(escapeRegex(keyword), "i");
+    pipeline.push({
+      $match: {
+        $or: [
+          { certNo: keywordRegex },
+          { "student.name": keywordRegex },
+          { "student.studentId": keywordRegex },
+          { "course.title": keywordRegex },
+          { performance: keywordRegex },
+          { remarks: keywordRegex },
+        ],
+      },
+    });
+  }
+
+  pipeline.push({
+    $facet: {
+      data: [
+        { $sort: sort },
+        { $skip: skip },
+        { $limit: limit },
+        {
+          $project: {
+            _id: 1,
+            certNo: 1,
+            startDate: 1,
+            endDate: 1,
+            issueDate: 1,
+            performance: 1,
+            remarks: 1,
+            pdfUrl: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            studentId: {
+              _id: "$student._id",
+              name: "$student.name",
+              studentId: "$student.studentId",
+              photoUrl: "$student.photoUrl",
+            },
+            courseId: {
+              _id: "$course._id",
+              title: "$course.title",
+            },
+          },
+        },
+      ],
+      totalMeta: [{ $count: "total" }],
+    },
+  });
+
+  const [result] = await Certificate.aggregate(pipeline);
+  const data = Array.isArray(result?.data) ? result.data : [];
+  const total = Number(result?.totalMeta?.[0]?.total || 0);
+
+  res.json({
+    ok: true,
+    data,
+    pagination: buildPagination(total, page, limit),
+    summary: {
+      total,
+    },
+  });
 });
 
 export const verifyCertificate = asyncHandler(async (req, res) => {
@@ -124,10 +298,9 @@ export const deleteCertificate = asyncHandler(async (req, res) => {
   if (!cert) return res.status(404).json({ ok: false, message: "Certificate not found" });
 
   if (cert.pdfUrl) {
-    const relativePath = String(cert.pdfUrl).replace(/^\/+/, "");
-    const absPath = path.join(process.cwd(), relativePath);
+    const absPath = resolveSafeCertificatePdfPath(cert.pdfUrl);
 
-    if (fs.existsSync(absPath)) {
+    if (absPath && fs.existsSync(absPath)) {
       try {
         fs.unlinkSync(absPath);
       } catch {

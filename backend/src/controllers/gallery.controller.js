@@ -5,6 +5,14 @@ import { GALLERY_CATEGORIES } from "../utils/gallery.constants.js";
 import { getUploadedFileUrl } from "../utils/uploadFileUrl.js";
 
 const categoryEnum = z.enum(GALLERY_CATEGORIES);
+const listQuerySchema = z.object({
+  category: z.preprocess((value) => {
+    if (value == null) return undefined;
+    const normalized = String(value).trim().toUpperCase();
+    if (!normalized || normalized === "ALL") return undefined;
+    return normalized;
+  }, categoryEnum.optional()),
+});
 
 export const createGalleryItem = asyncHandler(async (req, res) => {
   const schema = z.object({
@@ -32,11 +40,15 @@ export const createGalleryItem = asyncHandler(async (req, res) => {
 });
 
 export const listPublicGalleryItems = asyncHandler(async (req, res) => {
-  const schema = z.object({
-    category: categoryEnum.optional(),
-  });
+  const parsed = listQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({
+      ok: false,
+      message: "Invalid category filter",
+    });
+  }
 
-  const query = schema.parse(req.query);
+  const query = parsed.data;
   const filter = { isPublic: true };
 
   if (query.category) filter.category = query.category;
@@ -46,11 +58,15 @@ export const listPublicGalleryItems = asyncHandler(async (req, res) => {
 });
 
 export const listAdminGalleryItems = asyncHandler(async (req, res) => {
-  const schema = z.object({
-    category: categoryEnum.optional(),
-  });
+  const parsed = listQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({
+      ok: false,
+      message: "Invalid category filter",
+    });
+  }
 
-  const query = schema.parse(req.query);
+  const query = parsed.data;
   const filter = {};
 
   if (query.category) filter.category = query.category;
@@ -80,7 +96,10 @@ export const updateGalleryItem = asyncHandler(async (req, res) => {
     update.imageUrl = getUploadedFileUrl(req.file);
   }
 
-  const item = await Gallery.findByIdAndUpdate(req.params.id, update, { new: true });
+  const item = await Gallery.findByIdAndUpdate(req.params.id, update, {
+    new: true,
+    runValidators: true,
+  });
   if (!item) return res.status(404).json({ ok: false, message: "Not found" });
 
   res.json({ ok: true, message: "Gallery item updated", data: item });

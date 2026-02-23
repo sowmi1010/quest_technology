@@ -1,34 +1,91 @@
-function decodePayload(token) {
-  try {
-    const parts = String(token || "").split(".");
-    if (parts.length !== 3) return null;
+const ADMIN_STORAGE_KEY = "admin_profile";
 
-    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    const padded = base64 + "=".repeat((4 - (base64.length % 4 || 4)) % 4);
-    const json = atob(padded);
-    return JSON.parse(json);
+const BLOCKED_AUTH_FIELDS = new Set([
+  "token",
+  "accessToken",
+  "refreshToken",
+  "idToken",
+]);
+
+function inBrowser() {
+  return typeof window !== "undefined";
+}
+
+function safeJsonParse(raw) {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+function sanitizeAdmin(admin) {
+  if (!admin || typeof admin !== "object" || Array.isArray(admin)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(admin).filter(([key]) => !BLOCKED_AUTH_FIELDS.has(key))
+  );
+}
+
+function purgeLegacyLocalAuth() {
+  if (!inBrowser()) return;
+  try {
+    window.localStorage.removeItem("token");
+    window.localStorage.removeItem("admin");
+  } catch {
+    // storage may be unavailable in restricted contexts
+  }
+}
+
+function getSessionItem(key) {
+  if (!inBrowser()) return null;
+  try {
+    return window.sessionStorage.getItem(key);
   } catch {
     return null;
   }
 }
 
-export function getStoredToken() {
-  const token = localStorage.getItem("token");
-  if (!token || token === "undefined" || token === "null") return "";
-  return token;
+function setSessionItem(key, value) {
+  if (!inBrowser()) return;
+  try {
+    window.sessionStorage.setItem(key, value);
+  } catch {
+    // storage may be unavailable in restricted contexts
+  }
 }
 
-export function hasValidToken(token) {
-  const payload = decodePayload(token);
-  if (!payload || typeof payload !== "object") return false;
+function removeSessionItem(key) {
+  if (!inBrowser()) return;
+  try {
+    window.sessionStorage.removeItem(key);
+  } catch {
+    // storage may be unavailable in restricted contexts
+  }
+}
 
-  const exp = Number(payload.exp);
-  if (!Number.isFinite(exp) || exp <= 0) return false;
+// One-time cleanup for legacy localStorage token usage.
+purgeLegacyLocalAuth();
 
-  return Date.now() < exp * 1000;
+export function getStoredAdmin() {
+  const current = getSessionItem(ADMIN_STORAGE_KEY);
+  if (current && current !== "undefined" && current !== "null") {
+    const parsed = safeJsonParse(current);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  }
+
+  return {};
+}
+
+export function setStoredAdmin(admin) {
+  const safe = JSON.stringify(sanitizeAdmin(admin));
+  setSessionItem(ADMIN_STORAGE_KEY, safe);
+  purgeLegacyLocalAuth();
 }
 
 export function clearAuthStorage() {
-  localStorage.removeItem("token");
-  localStorage.removeItem("admin");
+  removeSessionItem(ADMIN_STORAGE_KEY);
+  purgeLegacyLocalAuth();
 }

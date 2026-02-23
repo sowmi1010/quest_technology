@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../../services/api";
+import { setStoredAdmin } from "../../../utils/auth";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 
 export default function Login() {
@@ -20,13 +21,8 @@ export default function Login() {
 
     try {
       const res = await api.post("/auth/login", form);
-      const token = res.data?.data?.token;
-      const admin = res.data?.data?.admin;
-
-      if (!token) throw new Error("Token missing");
-
-      localStorage.setItem("token", token);
-      localStorage.setItem("admin", JSON.stringify(admin || {}));
+      const admin = res?.data?.data?.admin || {};
+      setStoredAdmin(admin);
 
       navigate("/admin/dashboard", { replace: true });
     } catch (err) {

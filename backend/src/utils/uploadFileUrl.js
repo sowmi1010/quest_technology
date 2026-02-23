@@ -13,6 +13,25 @@ export function getUploadedFileUrl(file) {
     return file.url;
   }
 
+  if (typeof file.path === "string") {
+    const normalizedPath = file.path.replace(/\\/g, "/");
+    const marker = "/uploads/";
+    const markerIndex = normalizedPath.toLowerCase().indexOf(marker);
+    if (markerIndex >= 0) {
+      return normalizedPath.slice(markerIndex).replace(/\/+/g, "/");
+    }
+  }
+
+  if (typeof file.destination === "string" && typeof file.filename === "string") {
+    const normalizedDestination = file.destination.replace(/\\/g, "/");
+    const marker = "/uploads/";
+    const markerIndex = normalizedDestination.toLowerCase().indexOf(marker);
+    if (markerIndex >= 0) {
+      const relativeDir = normalizedDestination.slice(markerIndex + marker.length).replace(/^\/+|\/+$/g, "");
+      return `/uploads/${relativeDir}/${file.filename}`.replace(/\/+/g, "/");
+    }
+  }
+
   return "";
 }
 

@@ -129,8 +129,27 @@ function StatCard({ title, value, tone = "sky" }) {
 export default function PaymentsOverview() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1,
+    hasPrev: false,
+    hasNext: false,
+  });
+  const [summary, setSummary] = useState({
+    totalStudents: 0,
+    dueStudents: 0,
+    totalOutstanding: 0,
+    newPayments: 0,
+    existingPayments: 0,
+    completedPayments: 0,
+  });
 
   const [query, setQuery] = useState("");
+  const [keyword, setKeyword] = useState("");
   const [batchFilter, setBatchFilter] = useState("ALL");
   const [studentGroup, setStudentGroup] = useState("ALL");
   const [paymentGroup, setPaymentGroup] = useState("ALL");
@@ -141,99 +160,106 @@ export default function PaymentsOverview() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await getPaymentsOverview();
-      setRows(res?.data?.data || []);
+      const res = await getPaymentsOverview({
+        page,
+        limit,
+        keyword: keyword || undefined,
+        batch: batchFilter !== "ALL" ? batchFilter : undefined,
+        studentGroup: studentGroup !== "ALL" ? studentGroup : undefined,
+        paymentGroup: paymentGroup !== "ALL" ? paymentGroup : undefined,
+        dueOnly: dueOnly ? "1" : undefined,
+        inactivityDays: inactivityFilter !== "ANY" ? inactivityFilter : undefined,
+        sort: sortBy,
+      });
+
+      const data = res?.data?.data || [];
+      const nextPagination = res?.data?.pagination || {
+        page,
+        limit,
+        total: data.length,
+        totalPages: 1,
+        hasPrev: false,
+        hasNext: false,
+      };
+
+      setRows(data);
+      setPagination(nextPagination);
+      setSummary(res?.data?.summary || {
+        totalStudents: data.length,
+        dueStudents: data.filter((r) => Number(r.balance || 0) > 0).length,
+        totalOutstanding: data.reduce((sum, r) => sum + Number(r.balance || 0), 0),
+        newPayments: data.filter((r) => r.paymentGroup === "NEW").length,
+        existingPayments: data.filter((r) => r.paymentGroup === "EXISTING").length,
+        completedPayments: data.filter((r) => r.paymentGroup === "COMPLETED").length,
+      });
+
+      if (nextPagination.page && nextPagination.page !== page) {
+        setPage(nextPagination.page);
+      }
     } catch {
       setRows([]);
+      setPagination({
+        page: 1,
+        limit,
+        total: 0,
+        totalPages: 1,
+        hasPrev: false,
+        hasNext: false,
+      });
+      setSummary({
+        totalStudents: 0,
+        dueStudents: 0,
+        totalOutstanding: 0,
+        newPayments: 0,
+        existingPayments: 0,
+        completedPayments: 0,
+      });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setKeyword(query.trim());
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [keyword, batchFilter, studentGroup, paymentGroup, dueOnly, inactivityFilter, sortBy, limit]);
+
+  useEffect(() => {
     load();
-  }, []);
+  }, [page, limit, keyword, batchFilter, studentGroup, paymentGroup, dueOnly, inactivityFilter, sortBy]);
 
   const stats = useMemo(() => {
-    const total = rows.length;
-    const newPayments = rows.filter((r) => r.paymentGroup === "NEW").length;
-    const existingPayments = rows.filter((r) => r.paymentGroup === "EXISTING").length;
-    const completedPayments = rows.filter((r) => r.paymentGroup === "COMPLETED").length;
-    const dueStudents = rows.filter((r) => Number(r.balance || 0) > 0).length;
-    const totalOutstanding = rows.reduce((sum, r) => sum + Number(r.balance || 0), 0);
     return {
-      total,
-      newPayments,
-      existingPayments,
-      completedPayments,
-      dueStudents,
-      totalOutstanding,
+      total: Number(summary.totalStudents || 0),
+      newPayments: Number(summary.newPayments || 0),
+      existingPayments: Number(summary.existingPayments || 0),
+      completedPayments: Number(summary.completedPayments || 0),
+      dueStudents: Number(summary.dueStudents || 0),
+      totalOutstanding: Number(summary.totalOutstanding || 0),
     };
-  }, [rows]);
+  }, [summary]);
 
   const batches = useMemo(() => {
     const set = new Set(rows.map((r) => String(r.batchType || "").trim()).filter(Boolean));
+    if (batchFilter !== "ALL") set.add(batchFilter);
     return ["ALL", ...Array.from(set)];
-  }, [rows]);
+  }, [rows, batchFilter]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    let list = rows;
-
-    if (studentGroup !== "ALL") list = list.filter((r) => r.studentGroup === studentGroup);
-    if (paymentGroup !== "ALL") list = list.filter((r) => r.paymentGroup === paymentGroup);
-    if (batchFilter !== "ALL") list = list.filter((r) => (r.batchType || "") === batchFilter);
-    if (dueOnly) list = list.filter((r) => Number(r.balance || 0) > 0);
-
-    if (inactivityFilter !== "ANY") {
-      const minDays = Number(inactivityFilter);
-      list = list.filter((r) => {
-        if (Number(r.balance || 0) <= 0) return false;
-        const days = daysSince(r.lastPaymentDate);
-        if (days === null) return true;
-        return days >= minDays;
-      });
-    }
-
-    if (q) {
-      list = list.filter((r) => {
-        const line = [
-          r.studentId,
-          r.name,
-          r.courseTitle,
-          r.categoryName,
-          r.batchType,
-        ]
-          .map((x) => String(x || "").toLowerCase())
-          .join(" ");
-        return line.includes(q);
-      });
-    }
-
-    list = [...list].sort((a, b) => {
-      if (sortBy === "NAME") return String(a.name || "").localeCompare(String(b.name || ""));
-      if (sortBy === "BALANCE") return Number(b.balance || 0) - Number(a.balance || 0);
-      if (sortBy === "INACTIVE") {
-        const daysA = daysSince(a.lastPaymentDate);
-        const daysB = daysSince(b.lastPaymentDate);
-        const scoreA = daysA === null ? Number.MAX_SAFE_INTEGER : daysA;
-        const scoreB = daysB === null ? Number.MAX_SAFE_INTEGER : daysB;
-        return scoreB - scoreA;
-      }
-      const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return db - da;
-    });
-
-    return list;
-  }, [rows, query, batchFilter, studentGroup, paymentGroup, dueOnly, inactivityFilter, sortBy]);
+  const filtered = rows;
 
   const filteredStats = useMemo(() => {
-    const records = filtered.length;
-    const dueCount = filtered.filter((r) => Number(r.balance || 0) > 0).length;
-    const outstanding = filtered.reduce((sum, r) => sum + Number(r.balance || 0), 0);
+    const records = Number(pagination.total || 0);
+    const dueCount = Number(summary.dueStudents || 0);
+    const outstanding = Number(summary.totalOutstanding || 0);
     return { records, dueCount, outstanding };
-  }, [filtered]);
+  }, [pagination.total, summary.dueStudents, summary.totalOutstanding]);
 
   const resetRecoveryFilters = () => {
     setDueOnly(false);
@@ -550,6 +576,47 @@ export default function PaymentsOverview() {
             </table>
           </div>
         )}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/75">
+        <div>
+          Total records: <span className="font-bold text-white">{pagination.total}</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={limit}
+            onChange={(e) => setLimit(Number(e.target.value) || 20)}
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-extrabold text-white outline-none [&>option]:bg-white [&>option]:text-slate-900"
+          >
+            <option value={10}>10 / page</option>
+            <option value={20}>20 / page</option>
+            <option value={50}>50 / page</option>
+            <option value={100}>100 / page</option>
+          </select>
+
+          <button
+            type="button"
+            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+            disabled={loading || !pagination.hasPrev}
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-extrabold text-white/85 transition hover:bg-white/10 disabled:opacity-50"
+          >
+            Prev
+          </button>
+
+          <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-extrabold text-white">
+            Page {pagination.page} / {pagination.totalPages}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setPage((prev) => prev + 1)}
+            disabled={loading || !pagination.hasNext}
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-extrabold text-white/85 transition hover:bg-white/10 disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
   );

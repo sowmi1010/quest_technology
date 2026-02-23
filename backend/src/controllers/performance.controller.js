@@ -112,7 +112,10 @@ export const updatePerformanceUpdate = asyncHandler(async (req, res) => {
     });
   }
 
-  const item = await PerformanceUpdate.findByIdAndUpdate(req.params.id, update, { new: true });
+  const item = await PerformanceUpdate.findByIdAndUpdate(req.params.id, update, {
+    new: true,
+    runValidators: true,
+  });
   res.json({ ok: true, message: "Performance update updated", data: item });
 });
 

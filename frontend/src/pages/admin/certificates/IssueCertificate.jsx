@@ -48,8 +48,34 @@ export default function IssueCertificate() {
     (async () => {
       setLoadingStudents(true);
       try {
-        const res = await adminGetStudents();
-        setStudents(res?.data?.data || []);
+        const pageSize = 100;
+        const first = await adminGetStudents({
+          page: 1,
+          limit: pageSize,
+          sort: "name:asc",
+        });
+
+        const firstRows = first?.data?.data || [];
+        const totalPages = Number(first?.data?.pagination?.totalPages || 1);
+
+        if (totalPages <= 1) {
+          setStudents(firstRows);
+        } else {
+          const requests = [];
+          for (let p = 2; p <= totalPages; p += 1) {
+            requests.push(
+              adminGetStudents({
+                page: p,
+                limit: pageSize,
+                sort: "name:asc",
+              })
+            );
+          }
+
+          const rest = await Promise.all(requests);
+          const moreRows = rest.flatMap((resp) => resp?.data?.data || []);
+          setStudents([...firstRows, ...moreRows]);
+        }
       } catch (e) {
         setStudents([]);
         showToast("Failed to load students", "error");

@@ -1,5 +1,3 @@
-const FALLBACK_API_ORIGIN = "http://localhost:5000";
-
 function trimTrailingSlash(value = "") {
   return String(value).replace(/\/+$/, "");
 }
@@ -13,13 +11,40 @@ function originFromBase(base = "") {
   }
 }
 
+function runtimeOrigin() {
+  if (typeof window === "undefined") return "";
+  return trimTrailingSlash(window.location?.origin || "");
+}
+
 const envApiOrigin = trimTrailingSlash(import.meta.env.VITE_API_ORIGIN || "");
 const envApiBase = trimTrailingSlash(import.meta.env.VITE_API_BASE || "");
 
-export const API_ORIGIN =
-  envApiOrigin || originFromBase(envApiBase) || FALLBACK_API_ORIGIN;
+function resolveApiBase() {
+  if (envApiBase) return envApiBase;
+  if (envApiOrigin) return `${envApiOrigin}/api`;
 
-export const API_BASE = envApiBase || `${API_ORIGIN}/api`;
+  throw new Error(
+    "API not configured: set VITE_API_BASE (recommended) or VITE_API_ORIGIN."
+  );
+}
+
+export const API_BASE = resolveApiBase();
+
+function resolveApiOrigin() {
+  if (envApiOrigin) return envApiOrigin;
+
+  const originFromConfiguredBase = originFromBase(API_BASE);
+  if (originFromConfiguredBase) return originFromConfiguredBase;
+
+  const originFromRuntime = runtimeOrigin();
+  if (originFromRuntime) return originFromRuntime;
+
+  throw new Error(
+    "API origin could not be resolved. Set VITE_API_ORIGIN for absolute asset URLs."
+  );
+}
+
+export const API_ORIGIN = resolveApiOrigin();
 
 export function resolveAssetUrl(path = "") {
   if (!path) return "";

@@ -45,3 +45,23 @@ quest-technology/
     │   ├── services/
     │   └── utils/
     └── public/
+
+## Environment Variables
+
+1. Copy `backend/.env.example` to `backend/.env`.
+2. Fill real values in `backend/.env`.
+3. Never commit `.env` files to git.
+4. Keep `ENABLE_ADMIN_REGISTRATION=false` after first admin setup.
+5. If temporary re-enable is needed, keep `ADMIN_REGISTRATION_LOCAL_ONLY=true` and require `ADMIN_SETUP_KEY`.
+6. `CLOUDINARY_*` is optional in local/dev; when missing, image uploads are stored in `backend/uploads` and served from `/uploads`.
+7. Admin auth now uses `HttpOnly` cookies (`ACCESS_COOKIE_NAME`, `REFRESH_COOKIE_NAME`) instead of storing JWT tokens in browser localStorage.
+8. If frontend and backend run on different sites in production, use `AUTH_COOKIE_SAME_SITE=none` and `AUTH_COOKIE_SECURE=true`.
+
+## If Secrets Were Exposed
+
+Rotate these credentials immediately:
+
+1. MongoDB password (`MONGO_URI`)
+2. Cloudinary API secret (`CLOUDINARY_API_SECRET`)
+3. Gmail app password (`EMAIL_PASS`)
+4. JWT secret (`JWT_SECRET`)

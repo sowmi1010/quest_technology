@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../../services/api";
 import { getPaymentsOverview } from "../../../services/paymentApi";
+import { getStoredAdmin } from "../../../utils/auth";
 
 const STATUS_META = {
   NEW: { label: "NEW", cls: "bg-blue-500/15 text-blue-200 border-blue-400/25" },
@@ -19,16 +20,6 @@ function fmtDate(d) {
 function money(v) {
   const n = Number(v || 0);
   return `Rs ${n.toLocaleString("en-IN")}`;
-}
-
-function categoryBucket(name) {
-  const n = String(name || "").toLowerCase();
-  if (n.includes("mech")) return "mech";
-  if (n.includes("account")) return "accounts";
-  if (/\bit\b/.test(n) || n.includes("information technology") || n.includes("computer")) {
-    return "it";
-  }
-  return "other";
 }
 
 export default function Dashboard() {
@@ -51,11 +42,7 @@ export default function Dashboard() {
   const [errMsg, setErrMsg] = useState("");
 
   const admin = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem("admin") || "{}");
-    } catch {
-      return {};
-    }
+    return getStoredAdmin();
   }, []);
 
   const load = async () => {
@@ -71,30 +58,10 @@ export default function Dashboard() {
 
       const courses = coursesRes.data?.data || [];
       const enquiries = enqRes.data?.data || [];
-      const paymentRows = paymentOverviewRes.data?.data || [];
+      const paymentSummary = paymentOverviewRes.data?.summary || {};
 
       const newEnquiries = enquiries.filter((e) => e.status === "NEW").length;
       const publicCourses = courses.filter((c) => !!c.isPublic).length;
-
-      const newStudents = paymentRows.filter((r) => r.studentGroup === "NEW");
-      const newStudentsByCategory = { mech: 0, it: 0, accounts: 0 };
-      for (const row of newStudents) {
-        const bucket = categoryBucket(row.categoryName);
-        if (bucket in newStudentsByCategory) newStudentsByCategory[bucket] += 1;
-      }
-
-      const newPaymentCollected = paymentRows
-        .filter((r) => r.studentGroup === "NEW")
-        .reduce((sum, r) => sum + Number(r.totalPaid || 0), 0);
-
-      const existingPaymentCollected = paymentRows
-        .filter((r) => r.studentGroup === "EXISTING")
-        .reduce((sum, r) => sum + Number(r.totalPaid || 0), 0);
-
-      const defaultPaymentDue = paymentRows.reduce(
-        (sum, r) => sum + Math.max(0, Number(r.balance || 0)),
-        0
-      );
 
       const sortedEnq = [...enquiries].sort(
         (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
@@ -105,13 +72,13 @@ export default function Dashboard() {
         publicCourses,
         totalEnquiries: enquiries.length,
         newEnquiries,
-        totalStudents: paymentRows.length,
-        newStudentsMech: newStudentsByCategory.mech,
-        newStudentsIt: newStudentsByCategory.it,
-        newStudentsAccounts: newStudentsByCategory.accounts,
-        newPaymentCollected,
-        existingPaymentCollected,
-        defaultPaymentDue,
+        totalStudents: Number(paymentSummary.totalStudents || 0),
+        newStudentsMech: Number(paymentSummary.newStudentsMech || 0),
+        newStudentsIt: Number(paymentSummary.newStudentsIt || 0),
+        newStudentsAccounts: Number(paymentSummary.newStudentsAccounts || 0),
+        newPaymentCollected: Number(paymentSummary.newPaymentCollected || 0),
+        existingPaymentCollected: Number(paymentSummary.existingPaymentCollected || 0),
+        defaultPaymentDue: Number(paymentSummary.defaultPaymentDue || 0),
       });
 
       setLatestEnquiries(sortedEnq.slice(0, 7));
