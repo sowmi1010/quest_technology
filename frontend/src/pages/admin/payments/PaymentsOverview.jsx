@@ -566,7 +566,7 @@ export default function PaymentsOverview() {
                           className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-white/85 hover:bg-white/10 transition"
                         >
                           <UserCircle2 className="h-4 w-4" />
-                          Profile
+                          Master Report
                         </Link>
                       </td>
                     </tr>

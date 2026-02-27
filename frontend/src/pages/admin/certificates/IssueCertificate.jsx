@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { adminGetStudents } from "../../../services/studentApi";
 import { adminIssueCertificate } from "../../../services/certificateApi";
@@ -7,6 +7,8 @@ import {
   ArrowLeft,
   Award,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   FileText,
   Search,
   User,
@@ -15,15 +17,31 @@ import {
 import { resolveAssetUrl } from "../../../utils/apiConfig";
 
 
+function createDefaultStudentPagination() {
+  return {
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1,
+    hasPrev: false,
+    hasNext: false,
+  };
+}
+
 export default function IssueCertificate() {
   const navigate = useNavigate();
   const [students, setStudents] = useState([]);
   const [loadingStudents, setLoadingStudents] = useState(true);
+  const [studentsPagination, setStudentsPagination] = useState(createDefaultStudentPagination);
+  const [studentPage, setStudentPage] = useState(1);
+  const [studentLimit, setStudentLimit] = useState(20);
 
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
 
   const [studentQuery, setStudentQuery] = useState("");
+  const [studentKeyword, setStudentKeyword] = useState("");
+  const [selectedStudent, setSelectedStudent] = useState(null);
 
   const [form, setForm] = useState({
     studentId: "",
@@ -35,71 +53,94 @@ export default function IssueCertificate() {
     remarks: "",
   });
 
-  const showToast = (message, type = "success") => {
+  const showToast = useCallback((message, type = "success") => {
     setToast({ show: true, message, type });
     window.clearTimeout(showToast._t);
     showToast._t = window.setTimeout(
       () => setToast({ show: false, message: "", type }),
       2200
     );
-  };
+  }, []);
 
   useEffect(() => {
-    (async () => {
+    const timer = window.setTimeout(() => {
+      setStudentKeyword(studentQuery.trim());
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [studentQuery]);
+
+  useEffect(() => {
+    setStudentPage(1);
+  }, [studentKeyword, studentLimit]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadStudents = async () => {
       setLoadingStudents(true);
       try {
-        const pageSize = 100;
-        const first = await adminGetStudents({
-          page: 1,
-          limit: pageSize,
+        const res = await adminGetStudents({
+          page: studentPage,
+          limit: studentLimit,
+          keyword: studentKeyword || undefined,
           sort: "name:asc",
         });
 
-        const firstRows = first?.data?.data || [];
-        const totalPages = Number(first?.data?.pagination?.totalPages || 1);
+        if (cancelled) return;
 
-        if (totalPages <= 1) {
-          setStudents(firstRows);
-        } else {
-          const requests = [];
-          for (let p = 2; p <= totalPages; p += 1) {
-            requests.push(
-              adminGetStudents({
-                page: p,
-                limit: pageSize,
-                sort: "name:asc",
-              })
-            );
-          }
+        const rows = res?.data?.data || [];
+        const nextPagination = res?.data?.pagination || {
+          page: studentPage,
+          limit: studentLimit,
+          total: rows.length,
+          totalPages: 1,
+          hasPrev: false,
+          hasNext: false,
+        };
 
-          const rest = await Promise.all(requests);
-          const moreRows = rest.flatMap((resp) => resp?.data?.data || []);
-          setStudents([...firstRows, ...moreRows]);
+        setStudents(rows);
+        setStudentsPagination(nextPagination);
+
+        if (nextPagination.page && nextPagination.page !== studentPage) {
+          setStudentPage(nextPagination.page);
         }
-      } catch (e) {
+      } catch {
+        if (cancelled) return;
         setStudents([]);
+        setStudentsPagination(createDefaultStudentPagination());
         showToast("Failed to load students", "error");
       } finally {
-        setLoadingStudents(false);
+        if (!cancelled) {
+          setLoadingStudents(false);
+        }
       }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    };
 
-  const selectedStudent = useMemo(
-    () => students.find((x) => x._id === form.studentId),
-    [students, form.studentId]
-  );
+    loadStudents();
 
-  const filteredStudents = useMemo(() => {
-    const q = studentQuery.trim().toLowerCase();
-    if (!q) return students;
+    return () => {
+      cancelled = true;
+    };
+  }, [studentPage, studentLimit, studentKeyword, showToast]);
 
-    return students.filter((s) => {
-      const line = `${s.studentId || ""} ${s.name || ""} ${s.courseId?.title || ""}`.toLowerCase();
-      return line.includes(q);
-    });
-  }, [students, studentQuery]);
+  useEffect(() => {
+    if (!form.studentId) {
+      setSelectedStudent(null);
+      return;
+    }
+
+    const matched = students.find((x) => x._id === form.studentId);
+    if (matched) {
+      setSelectedStudent(matched);
+    }
+  }, [students, form.studentId]);
+
+  const studentOptions = useMemo(() => {
+    if (!form.studentId || !selectedStudent) return students;
+    const presentInPage = students.some((x) => x._id === form.studentId);
+    return presentInPage ? students : [selectedStudent, ...students];
+  }, [students, form.studentId, selectedStudent]);
 
   const onChange = (e) =>
     setForm((p) => ({
@@ -109,7 +150,8 @@ export default function IssueCertificate() {
 
   const onPickStudent = (e) => {
     const studentId = e.target.value;
-    const s = students.find((x) => x._id === studentId);
+    const s = studentOptions.find((x) => x._id === studentId);
+    setSelectedStudent(s || null);
 
     setForm((p) => ({
       ...p,
@@ -230,14 +272,68 @@ export default function IssueCertificate() {
                 disabled={loadingStudents}
               >
                 <option value="">
-                  {loadingStudents ? "Loading students..." : "Select student"}
+                  {loadingStudents
+                    ? "Loading students..."
+                    : studentKeyword
+                      ? "Select student (filtered)"
+                      : "Select student"}
                 </option>
-                {filteredStudents.map((s) => (
+                {studentOptions.map((s) => (
                   <option key={s._id} value={s._id}>
                     {s.studentId} - {s.name} ({s.courseId?.title || "Course"})
                   </option>
                 ))}
               </select>
+
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-white/65">
+                <div>
+                  Showing{" "}
+                  <span className="font-extrabold text-white">{students.length}</span> of{" "}
+                  <span className="font-extrabold text-white">{studentsPagination.total}</span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    value={studentLimit}
+                    onChange={(e) => setStudentLimit(Number(e.target.value) || 20)}
+                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-extrabold text-white outline-none [&>option]:bg-white [&>option]:text-slate-900"
+                  >
+                    <option value={20}>20 / page</option>
+                    <option value={50}>50 / page</option>
+                    <option value={100}>100 / page</option>
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => setStudentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={loadingStudents || !studentsPagination.hasPrev}
+                    className="inline-flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 font-extrabold text-white/85 transition hover:bg-white/10 disabled:opacity-50"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                    Prev
+                  </button>
+
+                  <div className="rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 font-extrabold text-white">
+                    {studentsPagination.page} / {studentsPagination.totalPages}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setStudentPage((prev) => prev + 1)}
+                    disabled={loadingStudents || !studentsPagination.hasNext}
+                    className="inline-flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 font-extrabold text-white/85 transition hover:bg-white/10 disabled:opacity-50"
+                  >
+                    Next
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {!loadingStudents && students.length === 0 && (
+                <div className="mt-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60">
+                  No students found for this search.
+                </div>
+              )}
             </div>
           </div>
 

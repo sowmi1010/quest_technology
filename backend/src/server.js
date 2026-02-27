@@ -5,6 +5,7 @@ import app from "./app.js";
 import { connectDB } from "./config/db.js";
 
 const PORT = process.env.PORT || 3000;
+const MIN_NODE_MAJOR = 18;
 const WEAK_JWT_SECRET_VALUES = new Set([
   "quest_secret_change_this",
   "change_this",
@@ -13,6 +14,21 @@ const WEAK_JWT_SECRET_VALUES = new Set([
   "your_jwt_secret",
   "replace-with-a-long-random-secret",
 ]);
+
+function validateRuntimeSupport() {
+  const nodeVersion = String(process.versions?.node || "").trim();
+  const major = Number(nodeVersion.split(".")[0] || 0);
+
+  if (!Number.isFinite(major) || major < MIN_NODE_MAJOR) {
+    throw new Error(
+      `Unsupported Node.js version ${nodeVersion || "unknown"}. Use Node.js >= ${MIN_NODE_MAJOR}.`
+    );
+  }
+
+  if (typeof fetch !== "function") {
+    throw new Error("Global fetch API is unavailable. Use Node.js >= 18.");
+  }
+}
 
 function validateSecurityConfig() {
   const jwtSecret = String(process.env.JWT_SECRET || "");
@@ -24,6 +40,7 @@ function validateSecurityConfig() {
 }
 
 async function start() {
+  validateRuntimeSupport();
   validateSecurityConfig();
   await connectDB(process.env.MONGO_URI);
 

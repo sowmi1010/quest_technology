@@ -1,11 +1,13 @@
 import path from "path";
 import fs from "fs";
+import os from "os";
 import Certificate from "../models/Certificate.js";
 import Student from "../models/Student.js";
 import Course from "../models/Course.js";
+import cloudinary, { isCloudinaryConfigured } from "../config/cloudinary.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateCertNo } from "../utils/certNo.js";
-import { generateCertificatePDF } from "../utils/certificatePdf.js";
+import { generateCertificateAssets } from "../utils/certificateRender.js";
 import { getNextCertificateSerial } from "../utils/certificateNoSequence.js";
 import { parseOptionalIsoDateInput } from "../utils/dateValidation.js";
 import {
@@ -21,6 +23,14 @@ const CERTIFICATE_UPLOAD_DIR = path.resolve(
   "uploads",
   "certificates"
 );
+const CERTIFICATE_TEMP_DIR = path.resolve(
+  os.tmpdir(),
+  "quest-technology",
+  "certificates"
+);
+const CERTIFICATE_CLOUDINARY_PREFIX = "quest-technology/certificates";
+const CERTIFICATE_CLOUDINARY_PREVIEW_PREFIX = "quest-technology/certificate-previews";
+let warnedCloudinaryFallback = false;
 
 function resolvePublicAppUrl() {
   const configured = String(process.env.PUBLIC_APP_URL || "").trim().replace(/\/+$/, "");
@@ -36,8 +46,115 @@ function resolvePublicAppUrl() {
 
 const PUBLIC_APP_URL = resolvePublicAppUrl();
 
-function resolveSafeCertificatePdfPath(pdfUrl) {
-  const normalizedUrl = String(pdfUrl || "").trim();
+function removeFileIfExists(filePath) {
+  if (!filePath) return;
+  if (!fs.existsSync(filePath)) return;
+
+  try {
+    fs.unlinkSync(filePath);
+  } catch {
+    // Ignore cleanup errors.
+  }
+}
+
+function resolveCertificateOutPath(filename) {
+  if (isCloudinaryConfigured) {
+    return path.join(CERTIFICATE_TEMP_DIR, filename);
+  }
+  return path.join(CERTIFICATE_UPLOAD_DIR, filename);
+}
+
+function buildCloudinaryCertificatePublicId(certNo) {
+  return `${CERTIFICATE_CLOUDINARY_PREFIX}/${certNo}`;
+}
+
+function buildCloudinaryCertificatePreviewPublicId(certNo) {
+  return `${CERTIFICATE_CLOUDINARY_PREVIEW_PREFIX}/${certNo}`;
+}
+
+function isProdEnv() {
+  return String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
+}
+
+function maybeWarnCertificateLocalFallback() {
+  if (isCloudinaryConfigured || warnedCloudinaryFallback) return;
+  warnedCloudinaryFallback = true;
+
+  const envNote = isProdEnv() ? "production" : "development";
+  console.warn(
+    `Cloudinary is not configured. Certificate PDFs will be stored on local /uploads in ${envNote}.`
+  );
+}
+
+async function uploadCertificatePdfToCloudinary({ outPath, certNo }) {
+  const publicId = buildCloudinaryCertificatePublicId(certNo);
+  const uploaded = await cloudinary.uploader.upload(outPath, {
+    resource_type: "raw",
+    public_id: publicId,
+    overwrite: true,
+    invalidate: true,
+    unique_filename: false,
+    use_filename: false,
+  });
+
+  const secureUrl = String(uploaded?.secure_url || uploaded?.url || "").trim();
+  if (!secureUrl) {
+    throw new Error("Certificate upload failed: Cloudinary did not return a URL.");
+  }
+
+  return { publicId, secureUrl };
+}
+
+async function uploadCertificatePreviewImageToCloudinary({ outPath, certNo }) {
+  const publicId = buildCloudinaryCertificatePreviewPublicId(certNo);
+  const uploaded = await cloudinary.uploader.upload(outPath, {
+    resource_type: "image",
+    public_id: publicId,
+    format: "jpg",
+    overwrite: true,
+    invalidate: true,
+    unique_filename: false,
+    use_filename: false,
+  });
+
+  const secureUrl = String(uploaded?.secure_url || uploaded?.url || "").trim();
+  if (!secureUrl) {
+    throw new Error("Preview upload failed: Cloudinary did not return a URL.");
+  }
+
+  return { publicId, secureUrl };
+}
+
+async function deleteCertificatePdfFromCloudinary(certNo) {
+  if (!isCloudinaryConfigured || !certNo) return;
+
+  const publicId = buildCloudinaryCertificatePublicId(certNo);
+  try {
+    await cloudinary.uploader.destroy(publicId, {
+      resource_type: "raw",
+      invalidate: true,
+    });
+  } catch {
+    // Ignore remote delete errors and continue DB cleanup.
+  }
+}
+
+async function deleteCertificatePreviewImageFromCloudinary(certNo) {
+  if (!isCloudinaryConfigured || !certNo) return;
+
+  const publicId = buildCloudinaryCertificatePreviewPublicId(certNo);
+  try {
+    await cloudinary.uploader.destroy(publicId, {
+      resource_type: "image",
+      invalidate: true,
+    });
+  } catch {
+    // Ignore remote delete errors and continue DB cleanup.
+  }
+}
+
+function resolveSafeCertificateAssetPath(fileUrl) {
+  const normalizedUrl = String(fileUrl || "").trim();
   if (!normalizedUrl.startsWith(CERTIFICATE_UPLOAD_PREFIX)) return null;
 
   const relativePath = normalizedUrl.replace(/^\/+/, "");
@@ -62,6 +179,8 @@ function isCertNoDuplicateError(err) {
 }
 
 export const issueCertificate = asyncHandler(async (req, res) => {
+  maybeWarnCertificateLocalFallback();
+
   const {
     studentId,
     courseId,
@@ -106,14 +225,22 @@ export const issueCertificate = asyncHandler(async (req, res) => {
     const seq = await getNextCertificateSerial();
     const certNo = generateCertNo(seq);
 
-    const filename = `${certNo}.pdf`;
-    const pdfUrl = `/uploads/certificates/${filename}`;
-    const outPath = path.join(process.cwd(), "uploads", "certificates", filename);
+    const pdfFilename = `${certNo}.pdf`;
+    const imageFilename = `${certNo}.png`;
+    const fallbackPdfUrl = `${CERTIFICATE_UPLOAD_PREFIX}${pdfFilename}`;
+    const fallbackImageUrl = `${CERTIFICATE_UPLOAD_PREFIX}${imageFilename}`;
+    const pdfOutPath = resolveCertificateOutPath(pdfFilename);
+    const imageOutPath = resolveCertificateOutPath(imageFilename);
     const verifyUrl = `${PUBLIC_APP_URL}/verify/${certNo}`;
+    const storageProvider = isCloudinaryConfigured ? "cloudinary" : "local";
+    const initialImageUrl = storageProvider === "local" ? fallbackImageUrl : "";
 
-    fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    fs.mkdirSync(path.dirname(pdfOutPath), { recursive: true });
+    fs.mkdirSync(path.dirname(imageOutPath), { recursive: true });
 
     let cert = null;
+    let uploadedCloudinaryPdfPublicId = "";
+    let uploadedCloudinaryPreviewPublicId = "";
     try {
       // Reserve certNo first to avoid file overwrite race on duplicate certNo.
       cert = await Certificate.create({
@@ -125,11 +252,14 @@ export const issueCertificate = asyncHandler(async (req, res) => {
         issueDate: normalizedIssueDate,
         performance: performance || "",
         remarks: remarks || "",
-        pdfUrl,
+        pdfUrl: fallbackPdfUrl,
+        imageUrl: initialImageUrl,
+        storageProvider,
       });
 
-      await generateCertificatePDF({
-        outPath,
+      await generateCertificateAssets({
+        pdfOutPath,
+        imageOutPath,
         certNo,
         verifyUrl,
         studentName: student.name,
@@ -142,25 +272,71 @@ export const issueCertificate = asyncHandler(async (req, res) => {
         remarks,
       });
 
+      if (isCloudinaryConfigured) {
+        const uploadedPdf = await uploadCertificatePdfToCloudinary({
+          outPath: pdfOutPath,
+          certNo,
+        });
+        uploadedCloudinaryPdfPublicId = uploadedPdf.publicId;
+        cert.pdfUrl = uploadedPdf.secureUrl;
+
+        try {
+          const uploadedPreview = await uploadCertificatePreviewImageToCloudinary({
+            outPath: imageOutPath,
+            certNo,
+          });
+          uploadedCloudinaryPreviewPublicId = uploadedPreview.publicId;
+          cert.imageUrl = uploadedPreview.secureUrl;
+        } catch (previewError) {
+          console.warn(
+            `Certificate preview upload failed for ${certNo}: ${previewError?.message || "unknown error"}`
+          );
+        }
+
+        await cert.save();
+      }
+
       return res.status(201).json({ ok: true, message: "Certificate generated", data: cert });
     } catch (err) {
       if (isCertNoDuplicateError(err) && attempt < 2) {
         continue;
       }
 
-      if (fs.existsSync(outPath)) {
+      if (uploadedCloudinaryPdfPublicId) {
         try {
-          fs.unlinkSync(outPath);
+          await cloudinary.uploader.destroy(uploadedCloudinaryPdfPublicId, {
+            resource_type: "raw",
+            invalidate: true,
+          });
         } catch {
-          // Ignore cleanup errors.
+          // Ignore remote cleanup errors.
         }
       }
+
+      if (uploadedCloudinaryPreviewPublicId) {
+        try {
+          await cloudinary.uploader.destroy(uploadedCloudinaryPreviewPublicId, {
+            resource_type: "image",
+            invalidate: true,
+          });
+        } catch {
+          // Ignore remote cleanup errors.
+        }
+      }
+
+      removeFileIfExists(pdfOutPath);
+      removeFileIfExists(imageOutPath);
 
       // Rollback reserved DB row if PDF generation failed after create.
       if (cert?._id) {
         await Certificate.findByIdAndDelete(cert._id);
       }
       throw err;
+    } finally {
+      if (isCloudinaryConfigured) {
+        removeFileIfExists(pdfOutPath);
+        removeFileIfExists(imageOutPath);
+      }
     }
   }
 });
@@ -250,6 +426,8 @@ export const listCertificates = asyncHandler(async (req, res) => {
             performance: 1,
             remarks: 1,
             pdfUrl: 1,
+            imageUrl: 1,
+            storageProvider: 1,
             createdAt: 1,
             updatedAt: 1,
             studentId: {
@@ -297,16 +475,19 @@ export const deleteCertificate = asyncHandler(async (req, res) => {
   const cert = await Certificate.findById(req.params.id);
   if (!cert) return res.status(404).json({ ok: false, message: "Certificate not found" });
 
-  if (cert.pdfUrl) {
-    const absPath = resolveSafeCertificatePdfPath(cert.pdfUrl);
+  await deleteCertificatePdfFromCloudinary(cert.certNo);
+  await deleteCertificatePreviewImageFromCloudinary(cert.certNo);
 
-    if (absPath && fs.existsSync(absPath)) {
-      try {
-        fs.unlinkSync(absPath);
-      } catch {
-        // Ignore filesystem delete errors and continue db cleanup.
-      }
-    }
+  if (cert.pdfUrl) {
+    const absPath = resolveSafeCertificateAssetPath(cert.pdfUrl);
+
+    removeFileIfExists(absPath);
+  }
+
+  if (cert.imageUrl) {
+    const absPath = resolveSafeCertificateAssetPath(cert.imageUrl);
+
+    removeFileIfExists(absPath);
   }
 
   await Certificate.findByIdAndDelete(req.params.id);

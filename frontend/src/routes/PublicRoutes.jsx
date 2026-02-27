@@ -6,6 +6,7 @@ import Courses from "../pages/public/Courses";
 import Enquiry from "../pages/public/Enquiry";
 import CourseDetails from "../pages/public/CourseDetails";
 import Gallery from "../pages/public/Gallery";
+import VerifyCertificate from "../pages/public/VerifyCertificate";
 
 export default function PublicRoutes() {
   return (
@@ -17,6 +18,7 @@ export default function PublicRoutes() {
         <Route path="/gallery" element={<Gallery />} />
 
         <Route path="/enquiry" element={<Enquiry />} />
+        <Route path="/verify/:certNo" element={<VerifyCertificate />} />
       </Route>
     </Routes>
   );
