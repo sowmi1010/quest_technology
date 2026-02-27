@@ -54,10 +54,11 @@ quest-technology/
 3. Never commit `.env` files to git.
 4. Keep `ENABLE_ADMIN_REGISTRATION=false` after first admin setup.
 5. If temporary re-enable is needed, keep `ADMIN_REGISTRATION_LOCAL_ONLY=true` and require `ADMIN_SETUP_KEY`.
-6. `CLOUDINARY_*` is optional in local/dev; when missing, uploads (including certificate PDFs/images) are stored in `backend/uploads` and served from `/uploads`.
+6. `CLOUDINARY_*` is required for image uploads (courses, students, feedback, gallery) and certificate generation. If missing, related endpoints return `503`.
 7. Certificate generation uses Puppeteer. If your host needs a custom browser binary path, set `PUPPETEER_EXECUTABLE_PATH` (and optionally `PUPPETEER_ARGS`).
 8. Admin auth now uses `HttpOnly` cookies (`ACCESS_COOKIE_NAME`, `REFRESH_COOKIE_NAME`) instead of storing JWT tokens in browser localStorage.
 9. If frontend and backend run on different sites in production, use `AUTH_COOKIE_SAME_SITE=none` and `AUTH_COOKIE_SECURE=true`.
+10. Password reset uses one-time tokens (`PASSWORD_RESET_TOKEN_TTL_MINUTES`). In production, keep `EXPOSE_PASSWORD_RESET_LINK=false`.
 
 ## If Secrets Were Exposed
 

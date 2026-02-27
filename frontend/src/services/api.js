@@ -1,5 +1,12 @@
 import axios from "axios";
-import { clearAuthStorage, setStoredAdmin } from "../utils/auth";
+import {
+  clearAuthStorage,
+  getStoredAccessToken,
+  getStoredRefreshToken,
+  setStoredAccessToken,
+  setStoredAdmin,
+  setStoredRefreshToken,
+} from "../utils/auth";
 import { API_BASE } from "../utils/apiConfig";
 
 export const api = axios.create({
@@ -29,7 +36,15 @@ function stripAuthorizationHeader(headers) {
 
 function enforceCookieOnlyAuth(config = {}) {
   config.withCredentials = true;
-  stripAuthorizationHeader(config.headers);
+  const token = getStoredAccessToken();
+
+  if (token) {
+    config.headers = config.headers || {};
+    config.headers.Authorization = `Bearer ${token}`;
+  } else {
+    stripAuthorizationHeader(config.headers);
+  }
+
   return config;
 }
 
@@ -47,6 +62,8 @@ function isAuthRoute(url = "") {
   return [
     "/auth/login",
     "/auth/register",
+    "/auth/forgot-password",
+    "/auth/reset-password",
     "/auth/refresh",
     "/auth/logout",
   ].some((path) => String(url).includes(path));
@@ -54,17 +71,24 @@ function isAuthRoute(url = "") {
 
 async function refreshSession() {
   if (!refreshPromise) {
+    const refreshToken = getStoredRefreshToken();
     refreshPromise = authClient
-      .post("/auth/refresh")
+      .post("/auth/refresh", refreshToken ? { refreshToken } : {})
       .then((res) => {
         const payload = res?.data?.data;
         const admin =
           payload && typeof payload === "object" && payload.admin
             ? payload.admin
             : payload;
+
+        const nextAccessToken = String(payload?.accessToken || "").trim();
+        const nextRefreshToken = String(payload?.refreshToken || "").trim();
+
         if (admin && typeof admin === "object") {
           setStoredAdmin(admin);
         }
+        setStoredAccessToken(nextAccessToken);
+        setStoredRefreshToken(nextRefreshToken);
         return true;
       })
       .catch(() => {

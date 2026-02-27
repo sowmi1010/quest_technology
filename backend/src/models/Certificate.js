@@ -14,12 +14,12 @@ const certificateSchema = new mongoose.Schema(
     performance: { type: String, trim: true }, // Weekly / Excellent / Good
     remarks: { type: String, trim: true },
 
-    pdfUrl: { type: String, required: true, trim: true }, // Cloudinary or /uploads/certificates/xxx.pdf
+    pdfUrl: { type: String, required: true, trim: true }, // Cloudinary secure URL
     imageUrl: { type: String, trim: true, default: "" }, // Optional preview image URL
     storageProvider: {
       type: String,
       enum: ["cloudinary", "local"],
-      default: "local",
+      default: "cloudinary",
     },
   },
   { timestamps: true }

@@ -1,4 +1,6 @@
 const ADMIN_STORAGE_KEY = "admin_profile";
+const ACCESS_TOKEN_STORAGE_KEY = "admin_access_token";
+const REFRESH_TOKEN_STORAGE_KEY = "admin_refresh_token";
 
 const BLOCKED_AUTH_FIELDS = new Set([
   "token",
@@ -85,7 +87,37 @@ export function setStoredAdmin(admin) {
   purgeLegacyLocalAuth();
 }
 
+export function getStoredAccessToken() {
+  return String(getSessionItem(ACCESS_TOKEN_STORAGE_KEY) || "").trim();
+}
+
+export function setStoredAccessToken(token) {
+  const value = String(token || "").trim();
+  if (!value) {
+    removeSessionItem(ACCESS_TOKEN_STORAGE_KEY);
+    return;
+  }
+
+  setSessionItem(ACCESS_TOKEN_STORAGE_KEY, value);
+}
+
+export function getStoredRefreshToken() {
+  return String(getSessionItem(REFRESH_TOKEN_STORAGE_KEY) || "").trim();
+}
+
+export function setStoredRefreshToken(token) {
+  const value = String(token || "").trim();
+  if (!value) {
+    removeSessionItem(REFRESH_TOKEN_STORAGE_KEY);
+    return;
+  }
+
+  setSessionItem(REFRESH_TOKEN_STORAGE_KEY, value);
+}
+
 export function clearAuthStorage() {
   removeSessionItem(ADMIN_STORAGE_KEY);
+  removeSessionItem(ACCESS_TOKEN_STORAGE_KEY);
+  removeSessionItem(REFRESH_TOKEN_STORAGE_KEY);
   purgeLegacyLocalAuth();
 }

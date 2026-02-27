@@ -30,7 +30,8 @@ const CERTIFICATE_TEMP_DIR = path.resolve(
 );
 const CERTIFICATE_CLOUDINARY_PREFIX = "quest-technology/certificates";
 const CERTIFICATE_CLOUDINARY_PREVIEW_PREFIX = "quest-technology/certificate-previews";
-let warnedCloudinaryFallback = false;
+const CLOUDINARY_REQUIRED_MESSAGE =
+  "Certificate generation is disabled because Cloudinary is not configured.";
 
 function resolvePublicAppUrl() {
   const configured = String(process.env.PUBLIC_APP_URL || "").trim().replace(/\/+$/, "");
@@ -58,10 +59,7 @@ function removeFileIfExists(filePath) {
 }
 
 function resolveCertificateOutPath(filename) {
-  if (isCloudinaryConfigured) {
-    return path.join(CERTIFICATE_TEMP_DIR, filename);
-  }
-  return path.join(CERTIFICATE_UPLOAD_DIR, filename);
+  return path.join(CERTIFICATE_TEMP_DIR, filename);
 }
 
 function buildCloudinaryCertificatePublicId(certNo) {
@@ -70,20 +68,6 @@ function buildCloudinaryCertificatePublicId(certNo) {
 
 function buildCloudinaryCertificatePreviewPublicId(certNo) {
   return `${CERTIFICATE_CLOUDINARY_PREVIEW_PREFIX}/${certNo}`;
-}
-
-function isProdEnv() {
-  return String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
-}
-
-function maybeWarnCertificateLocalFallback() {
-  if (isCloudinaryConfigured || warnedCloudinaryFallback) return;
-  warnedCloudinaryFallback = true;
-
-  const envNote = isProdEnv() ? "production" : "development";
-  console.warn(
-    `Cloudinary is not configured. Certificate PDFs will be stored on local /uploads in ${envNote}.`
-  );
 }
 
 async function uploadCertificatePdfToCloudinary({ outPath, certNo }) {
@@ -179,7 +163,12 @@ function isCertNoDuplicateError(err) {
 }
 
 export const issueCertificate = asyncHandler(async (req, res) => {
-  maybeWarnCertificateLocalFallback();
+  if (!isCloudinaryConfigured) {
+    return res.status(503).json({
+      ok: false,
+      message: CLOUDINARY_REQUIRED_MESSAGE,
+    });
+  }
 
   const {
     studentId,
@@ -227,13 +216,11 @@ export const issueCertificate = asyncHandler(async (req, res) => {
 
     const pdfFilename = `${certNo}.pdf`;
     const imageFilename = `${certNo}.png`;
-    const fallbackPdfUrl = `${CERTIFICATE_UPLOAD_PREFIX}${pdfFilename}`;
-    const fallbackImageUrl = `${CERTIFICATE_UPLOAD_PREFIX}${imageFilename}`;
+    const pendingPdfUrl = `cloudinary://pending/${certNo}.pdf`;
     const pdfOutPath = resolveCertificateOutPath(pdfFilename);
     const imageOutPath = resolveCertificateOutPath(imageFilename);
     const verifyUrl = `${PUBLIC_APP_URL}/verify/${certNo}`;
-    const storageProvider = isCloudinaryConfigured ? "cloudinary" : "local";
-    const initialImageUrl = storageProvider === "local" ? fallbackImageUrl : "";
+    const storageProvider = "cloudinary";
 
     fs.mkdirSync(path.dirname(pdfOutPath), { recursive: true });
     fs.mkdirSync(path.dirname(imageOutPath), { recursive: true });
@@ -252,8 +239,8 @@ export const issueCertificate = asyncHandler(async (req, res) => {
         issueDate: normalizedIssueDate,
         performance: performance || "",
         remarks: remarks || "",
-        pdfUrl: fallbackPdfUrl,
-        imageUrl: initialImageUrl,
+        pdfUrl: pendingPdfUrl,
+        imageUrl: "",
         storageProvider,
       });
 
@@ -272,29 +259,27 @@ export const issueCertificate = asyncHandler(async (req, res) => {
         remarks,
       });
 
-      if (isCloudinaryConfigured) {
-        const uploadedPdf = await uploadCertificatePdfToCloudinary({
-          outPath: pdfOutPath,
+      const uploadedPdf = await uploadCertificatePdfToCloudinary({
+        outPath: pdfOutPath,
+        certNo,
+      });
+      uploadedCloudinaryPdfPublicId = uploadedPdf.publicId;
+      cert.pdfUrl = uploadedPdf.secureUrl;
+
+      try {
+        const uploadedPreview = await uploadCertificatePreviewImageToCloudinary({
+          outPath: imageOutPath,
           certNo,
         });
-        uploadedCloudinaryPdfPublicId = uploadedPdf.publicId;
-        cert.pdfUrl = uploadedPdf.secureUrl;
-
-        try {
-          const uploadedPreview = await uploadCertificatePreviewImageToCloudinary({
-            outPath: imageOutPath,
-            certNo,
-          });
-          uploadedCloudinaryPreviewPublicId = uploadedPreview.publicId;
-          cert.imageUrl = uploadedPreview.secureUrl;
-        } catch (previewError) {
-          console.warn(
-            `Certificate preview upload failed for ${certNo}: ${previewError?.message || "unknown error"}`
-          );
-        }
-
-        await cert.save();
+        uploadedCloudinaryPreviewPublicId = uploadedPreview.publicId;
+        cert.imageUrl = uploadedPreview.secureUrl;
+      } catch (previewError) {
+        console.warn(
+          `Certificate preview upload failed for ${certNo}: ${previewError?.message || "unknown error"}`
+        );
       }
+
+      await cert.save();
 
       return res.status(201).json({ ok: true, message: "Certificate generated", data: cert });
     } catch (err) {
@@ -333,10 +318,8 @@ export const issueCertificate = asyncHandler(async (req, res) => {
       }
       throw err;
     } finally {
-      if (isCloudinaryConfigured) {
-        removeFileIfExists(pdfOutPath);
-        removeFileIfExists(imageOutPath);
-      }
+      removeFileIfExists(pdfOutPath);
+      removeFileIfExists(imageOutPath);
     }
   }
 });

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../../services/api";
-import { setStoredAdmin } from "../../../utils/auth";
+import { setStoredAccessToken, setStoredAdmin, setStoredRefreshToken } from "../../../utils/auth";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 
 export default function Login() {
@@ -21,7 +21,10 @@ export default function Login() {
 
     try {
       const res = await api.post("/auth/login", form);
-      const admin = res?.data?.data?.admin || {};
+      const payload = res?.data?.data || {};
+      const admin = payload?.admin || {};
+      setStoredAccessToken(payload?.accessToken || "");
+      setStoredRefreshToken(payload?.refreshToken || "");
       setStoredAdmin(admin);
 
       navigate("/admin/dashboard", { replace: true });
@@ -116,6 +119,15 @@ export default function Login() {
                 <div className="text-rose-200/90">{msg}</div>
               </div>
             )}
+
+            <div className="flex items-center justify-end">
+              <Link
+                to="/admin/forgot-password"
+                className="text-xs font-semibold text-sky-200/90 hover:text-sky-100 underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
 
             {/* Submit */}
             <button

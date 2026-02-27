@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import Login from "../pages/admin/auth/Login";
+import ForgotPassword from "../pages/admin/auth/ForgotPassword";
+import ResetPassword from "../pages/admin/auth/ResetPassword";
 import AdminLayout from "../components/layout/admin/AdminLayout";
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -38,6 +40,8 @@ export default function AdminRoutes() {
     <Routes>
       {/* Public admin route */}
       <Route path="login" element={<Login />} />
+      <Route path="forgot-password" element={<ForgotPassword />} />
+      <Route path="reset-password" element={<ResetPassword />} />
 
       {/* Protected admin area */}
       <Route element={<ProtectedRoute />}>

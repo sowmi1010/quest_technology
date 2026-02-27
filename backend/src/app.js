@@ -19,8 +19,12 @@ import feedbackRoutes from "./routes/feedback.routes.js";
 import galleryRoutes from "./routes/gallery.routes.js";
 import performanceRoutes from "./routes/performance.routes.js";
 
+function stripWrappingQuotes(value = "") {
+  return String(value || "").trim().replace(/^['"`]+|['"`]+$/g, "");
+}
+
 function normalizeOrigin(value = "") {
-  const raw = String(value || "").trim();
+  const raw = stripWrappingQuotes(value);
   if (!raw) return "";
 
   try {
@@ -33,13 +37,13 @@ function normalizeOrigin(value = "") {
 
 function getAllowedOrigins() {
   const envList = String(process.env.CORS_ORIGINS || "")
-    .split(",")
-    .map((v) => v.trim())
+    .split(/[\n,]+/)
+    .map((v) => stripWrappingQuotes(v))
     .filter(Boolean);
 
   const configured = [
     ...envList,
-    process.env.PUBLIC_APP_URL,
+    stripWrappingQuotes(process.env.PUBLIC_APP_URL),
   ]
     .map(normalizeOrigin)
     .filter(Boolean);
@@ -74,7 +78,9 @@ app.use(
         return callback(null, true);
       }
 
-      return callback(new Error(`CORS blocked for origin: ${origin}`));
+      const err = new Error(`CORS blocked for origin: ${origin}`);
+      err.status = 403;
+      return callback(err);
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Admin-Setup-Key"],

@@ -468,7 +468,7 @@ export default function IssueCertificate() {
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <div className="font-semibold text-white">PDF storage</div>
               <div className="mt-1">
-                Generated PDF is stored in backend uploads folder and can be opened anytime.
+                Generated PDF is uploaded to Cloudinary and can be opened anytime.
               </div>
             </div>
 

@@ -12,15 +12,49 @@ function boolFromEnv(name, fallback) {
   return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
 }
 
+function isProdEnv() {
+  return String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
+}
+
+function parseUrlHostname(value = "") {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  try {
+    return String(new URL(raw).hostname || "").trim().toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function isLoopbackHost(hostname = "") {
+  const host = String(hostname || "").trim().toLowerCase();
+  return host === "localhost" || host === "127.0.0.1" || host === "::1";
+}
+
+function shouldDefaultToCrossSiteCookies() {
+  if (!isProdEnv()) return false;
+
+  const publicHost = parseUrlHostname(process.env.PUBLIC_APP_URL);
+  if (!publicHost) return false;
+
+  return !isLoopbackHost(publicHost);
+}
+
 function getSameSite() {
-  const raw = String(process.env.AUTH_COOKIE_SAME_SITE || "lax").trim().toLowerCase();
+  const raw = String(process.env.AUTH_COOKIE_SAME_SITE || "").trim().toLowerCase();
   if (raw === "strict" || raw === "none") return raw;
+  if (raw === "lax") return "lax";
+
+  if (shouldDefaultToCrossSiteCookies()) {
+    return "none";
+  }
+
   return "lax";
 }
 
 function getCookieSecure() {
-  const isProd = String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
-  return boolFromEnv("AUTH_COOKIE_SECURE", isProd);
+  return boolFromEnv("AUTH_COOKIE_SECURE", isProdEnv());
 }
 
 function getCommonCookieOptions() {
