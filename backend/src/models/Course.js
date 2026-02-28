@@ -30,7 +30,7 @@ const courseSchema = new mongoose.Schema(
     // New structured syllabus with modules/lessons/projects
     syllabusModules: { type: [syllabusModuleSchema], default: [] },
 
-    imageUrl: { type: String, default: "" }, // uploads url
+    imageUrl: { type: String, default: "" }, // Cloudinary URL
     isPublic: { type: Boolean, default: true },
   },
   { timestamps: true }

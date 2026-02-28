@@ -100,7 +100,7 @@ export const createStudent = asyncHandler(async (req, res) => {
   const photoUrl = getUploadedFileUrl(req.file);
 
   // Retry on duplicate studentId in case legacy/manual data created gaps/collisions.
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
     const serial = await getNextStudentSerial();
     const studentId = generateStudentId(serial);
 
@@ -120,12 +120,17 @@ export const createStudent = asyncHandler(async (req, res) => {
 
       return res.status(201).json({ ok: true, message: "Student added", data: student });
     } catch (err) {
-      if (isStudentIdDuplicateError(err) && attempt < 2) {
+      if (isStudentIdDuplicateError(err) && attempt < 9) {
         continue;
       }
       throw err;
     }
   }
+
+  return res.status(409).json({
+    ok: false,
+    message: "Unable to assign a unique student ID. Please retry.",
+  });
 });
 
 export const listStudents = asyncHandler(async (req, res) => {

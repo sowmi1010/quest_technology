@@ -18,7 +18,7 @@ const certificateSchema = new mongoose.Schema(
     imageUrl: { type: String, trim: true, default: "" }, // Optional preview image URL
     storageProvider: {
       type: String,
-      enum: ["cloudinary", "local"],
+      enum: ["cloudinary"],
       default: "cloudinary",
     },
   },

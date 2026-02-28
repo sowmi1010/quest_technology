@@ -1,4 +1,3 @@
-import fs from "fs";
 import path from "path";
 import QRCode from "qrcode";
 
@@ -43,6 +42,10 @@ async function getStudentPhotoDataUrl(source) {
   const raw = String(source || "").trim();
   if (!raw) return "";
 
+  if (raw.startsWith("data:image/")) {
+    return raw;
+  }
+
   if (/^https?:\/\//i.test(raw)) {
     try {
       const response = await fetch(raw);
@@ -59,18 +62,7 @@ async function getStudentPhotoDataUrl(source) {
     }
   }
 
-  const localPath = path.isAbsolute(raw)
-    ? raw
-    : path.join(process.cwd(), raw.replace(/^\/+/, ""));
-
-  if (!fs.existsSync(localPath)) return "";
-
-  try {
-    const bytes = fs.readFileSync(localPath);
-    return toDataUrl(bytes, normalizeImageMime("", localPath));
-  } catch {
-    return "";
-  }
+  return "";
 }
 
 function resolveDurationLabel({ startDate, endDate }) {
@@ -477,8 +469,6 @@ async function loadPuppeteer() {
 }
 
 export async function generateCertificateAssets({
-  pdfOutPath,
-  imageOutPath,
   certNo,
   verifyUrl,
   studentName,
@@ -490,9 +480,6 @@ export async function generateCertificateAssets({
   performance,
   remarks,
 }) {
-  fs.mkdirSync(path.dirname(pdfOutPath), { recursive: true });
-  fs.mkdirSync(path.dirname(imageOutPath), { recursive: true });
-
   const [studentPhotoDataUrl, qrDataUrl] = await Promise.all([
     getStudentPhotoDataUrl(studentPhotoSource),
     QRCode.toDataURL(verifyUrl, { margin: 1, width: 256 }),
@@ -521,21 +508,23 @@ export async function generateCertificateAssets({
     await page.setContent(html, { waitUntil: "networkidle0" });
     await page.emulateMediaType("screen");
 
-    await page.pdf({
-      path: pdfOutPath,
+    const pdfBuffer = await page.pdf({
       format: "A4",
       printBackground: true,
       preferCSSPageSize: true,
       margin: { top: 0, right: 0, bottom: 0, left: 0 },
     });
 
-    await page.screenshot({
-      path: imageOutPath,
+    const imageBuffer = await page.screenshot({
       type: "png",
       fullPage: true,
     });
+
+    return {
+      pdfBuffer: Buffer.from(pdfBuffer),
+      imageBuffer: Buffer.from(imageBuffer),
+    };
   } finally {
     await browser.close();
   }
 }
-

@@ -25,6 +25,7 @@ import {
   getPublicImageUrl,
 } from "../../utils/publicUi";
 import Testimonials from "./components/Testimonials";
+import MouHighlights from "./components/MouHighlights";
 import FounderVision from "./components/FounderVision";
 import PublicSeo from "../../components/seo/PublicSeo";
 
@@ -357,6 +358,53 @@ export default function Home() {
                   WhatsApp
                 </motion.a>
               </div>
+
+              <div className="mt-4 space-y-2 rounded-2xl border border-white/20 bg-white/10 p-3 text-xs text-white/85">
+                <a
+                  href={`tel:${PUBLIC_CONTACT.phoneE164}`}
+                  className="block font-bold hover:text-white"
+                >
+                  {PUBLIC_CONTACT.phoneDisplay}
+                </a>
+                {PUBLIC_CONTACT.phoneE164Secondary && (
+                  <a
+                    href={`tel:${PUBLIC_CONTACT.phoneE164Secondary}`}
+                    className="block font-bold hover:text-white"
+                  >
+                    {PUBLIC_CONTACT.phoneDisplaySecondary || PUBLIC_CONTACT.phoneE164Secondary}
+                  </a>
+                )}
+                <a
+                  href={`mailto:${PUBLIC_CONTACT.email}`}
+                  className="block font-semibold text-white/90 hover:text-white"
+                >
+                  {PUBLIC_CONTACT.email}
+                </a>
+                <p className="text-white/80">{PUBLIC_CONTACT.location}</p>
+
+                <div className="flex flex-wrap gap-3 pt-1">
+                  {PUBLIC_CONTACT.twitter && (
+                    <a
+                      href={PUBLIC_CONTACT.twitter}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-bold underline underline-offset-4 hover:text-white"
+                    >
+                      X (Twitter)
+                    </a>
+                  )}
+                  {PUBLIC_CONTACT.instagram && (
+                    <a
+                      href={PUBLIC_CONTACT.instagram}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-bold underline underline-offset-4 hover:text-white"
+                    >
+                      Instagram
+                    </a>
+                  )}
+                </div>
+              </div>
             </div>
           </motion.aside>
         </div>
@@ -541,6 +589,7 @@ export default function Home() {
       </section>
 
       <Testimonials />
+      <MouHighlights />
       <FounderVision />
 
     </PremiumShell>

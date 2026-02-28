@@ -1,8 +1,12 @@
 import dotenv from "dotenv";
-dotenv.config();
+import path from "path";
+import { fileURLToPath } from "url";
 
-import app from "./src/app.js";
-import { connectDB } from "./src/config/db.js";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Always load backend/.env even if the process is started from another cwd.
+dotenv.config({ path: path.resolve(__dirname, ".env") });
 
 const PORT = process.env.PORT || 3000;
 const MIN_NODE_MAJOR = 18;
@@ -42,6 +46,13 @@ function validateSecurityConfig() {
 async function start() {
   validateRuntimeSupport();
   validateSecurityConfig();
+
+  // Load modules after env is initialized so middleware sees Cloudinary vars.
+  const [{ default: app }, { connectDB }] = await Promise.all([
+    import("./src/app.js"),
+    import("./src/config/db.js"),
+  ]);
+
   await connectDB(process.env.MONGO_URI);
 
   app.listen(PORT, () => {

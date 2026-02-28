@@ -1,10 +1,7 @@
-import path from "path";
-import fs from "fs";
-import os from "os";
 import Certificate from "../models/Certificate.js";
 import Student from "../models/Student.js";
 import Course from "../models/Course.js";
-import cloudinary, { isCloudinaryConfigured } from "../config/cloudinary.js";
+import cloudinary, { ensureCloudinaryConfigured } from "../config/cloudinary.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateCertNo } from "../utils/certNo.js";
 import { generateCertificateAssets } from "../utils/certificateRender.js";
@@ -17,17 +14,6 @@ import {
   parseSortToken,
 } from "../utils/listQuery.js";
 
-const CERTIFICATE_UPLOAD_PREFIX = "/uploads/certificates/";
-const CERTIFICATE_UPLOAD_DIR = path.resolve(
-  process.cwd(),
-  "uploads",
-  "certificates"
-);
-const CERTIFICATE_TEMP_DIR = path.resolve(
-  os.tmpdir(),
-  "quest-technology",
-  "certificates"
-);
 const CERTIFICATE_CLOUDINARY_PREFIX = "quest-technology/certificates";
 const CERTIFICATE_CLOUDINARY_PREVIEW_PREFIX = "quest-technology/certificate-previews";
 const CLOUDINARY_REQUIRED_MESSAGE =
@@ -47,21 +33,6 @@ function resolvePublicAppUrl() {
 
 const PUBLIC_APP_URL = resolvePublicAppUrl();
 
-function removeFileIfExists(filePath) {
-  if (!filePath) return;
-  if (!fs.existsSync(filePath)) return;
-
-  try {
-    fs.unlinkSync(filePath);
-  } catch {
-    // Ignore cleanup errors.
-  }
-}
-
-function resolveCertificateOutPath(filename) {
-  return path.join(CERTIFICATE_TEMP_DIR, filename);
-}
-
 function buildCloudinaryCertificatePublicId(certNo) {
   return `${CERTIFICATE_CLOUDINARY_PREFIX}/${certNo}`;
 }
@@ -70,11 +41,23 @@ function buildCloudinaryCertificatePreviewPublicId(certNo) {
   return `${CERTIFICATE_CLOUDINARY_PREVIEW_PREFIX}/${certNo}`;
 }
 
-async function uploadCertificatePdfToCloudinary({ outPath, certNo }) {
+function uploadBufferToCloudinary(buffer, options) {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(options, (error, result) => {
+      if (error) return reject(error);
+      return resolve(result || {});
+    });
+
+    uploadStream.end(buffer);
+  });
+}
+
+async function uploadCertificatePdfToCloudinary({ pdfBuffer, certNo }) {
   const publicId = buildCloudinaryCertificatePublicId(certNo);
-  const uploaded = await cloudinary.uploader.upload(outPath, {
+  const uploaded = await uploadBufferToCloudinary(pdfBuffer, {
     resource_type: "raw",
     public_id: publicId,
+    format: "pdf",
     overwrite: true,
     invalidate: true,
     unique_filename: false,
@@ -89,9 +72,9 @@ async function uploadCertificatePdfToCloudinary({ outPath, certNo }) {
   return { publicId, secureUrl };
 }
 
-async function uploadCertificatePreviewImageToCloudinary({ outPath, certNo }) {
+async function uploadCertificatePreviewImageToCloudinary({ imageBuffer, certNo }) {
   const publicId = buildCloudinaryCertificatePreviewPublicId(certNo);
-  const uploaded = await cloudinary.uploader.upload(outPath, {
+  const uploaded = await uploadBufferToCloudinary(imageBuffer, {
     resource_type: "image",
     public_id: publicId,
     format: "jpg",
@@ -110,7 +93,7 @@ async function uploadCertificatePreviewImageToCloudinary({ outPath, certNo }) {
 }
 
 async function deleteCertificatePdfFromCloudinary(certNo) {
-  if (!isCloudinaryConfigured || !certNo) return;
+  if (!certNo || !ensureCloudinaryConfigured()) return;
 
   const publicId = buildCloudinaryCertificatePublicId(certNo);
   try {
@@ -124,7 +107,7 @@ async function deleteCertificatePdfFromCloudinary(certNo) {
 }
 
 async function deleteCertificatePreviewImageFromCloudinary(certNo) {
-  if (!isCloudinaryConfigured || !certNo) return;
+  if (!certNo || !ensureCloudinaryConfigured()) return;
 
   const publicId = buildCloudinaryCertificatePreviewPublicId(certNo);
   try {
@@ -137,24 +120,6 @@ async function deleteCertificatePreviewImageFromCloudinary(certNo) {
   }
 }
 
-function resolveSafeCertificateAssetPath(fileUrl) {
-  const normalizedUrl = String(fileUrl || "").trim();
-  if (!normalizedUrl.startsWith(CERTIFICATE_UPLOAD_PREFIX)) return null;
-
-  const relativePath = normalizedUrl.replace(/^\/+/, "");
-  const absolutePath = path.resolve(process.cwd(), relativePath);
-  const relativeToUploadDir = path.relative(CERTIFICATE_UPLOAD_DIR, absolutePath);
-
-  if (
-    relativeToUploadDir.startsWith("..") ||
-    path.isAbsolute(relativeToUploadDir)
-  ) {
-    return null;
-  }
-
-  return absolutePath;
-}
-
 function isCertNoDuplicateError(err) {
   return (
     err?.code === 11000 &&
@@ -163,7 +128,7 @@ function isCertNoDuplicateError(err) {
 }
 
 export const issueCertificate = asyncHandler(async (req, res) => {
-  if (!isCloudinaryConfigured) {
+  if (!ensureCloudinaryConfigured()) {
     return res.status(503).json({
       ok: false,
       message: CLOUDINARY_REQUIRED_MESSAGE,
@@ -214,16 +179,9 @@ export const issueCertificate = asyncHandler(async (req, res) => {
     const seq = await getNextCertificateSerial();
     const certNo = generateCertNo(seq);
 
-    const pdfFilename = `${certNo}.pdf`;
-    const imageFilename = `${certNo}.png`;
     const pendingPdfUrl = `cloudinary://pending/${certNo}.pdf`;
-    const pdfOutPath = resolveCertificateOutPath(pdfFilename);
-    const imageOutPath = resolveCertificateOutPath(imageFilename);
     const verifyUrl = `${PUBLIC_APP_URL}/verify/${certNo}`;
     const storageProvider = "cloudinary";
-
-    fs.mkdirSync(path.dirname(pdfOutPath), { recursive: true });
-    fs.mkdirSync(path.dirname(imageOutPath), { recursive: true });
 
     let cert = null;
     let uploadedCloudinaryPdfPublicId = "";
@@ -244,9 +202,7 @@ export const issueCertificate = asyncHandler(async (req, res) => {
         storageProvider,
       });
 
-      await generateCertificateAssets({
-        pdfOutPath,
-        imageOutPath,
+      const { pdfBuffer, imageBuffer } = await generateCertificateAssets({
         certNo,
         verifyUrl,
         studentName: student.name,
@@ -260,7 +216,7 @@ export const issueCertificate = asyncHandler(async (req, res) => {
       });
 
       const uploadedPdf = await uploadCertificatePdfToCloudinary({
-        outPath: pdfOutPath,
+        pdfBuffer,
         certNo,
       });
       uploadedCloudinaryPdfPublicId = uploadedPdf.publicId;
@@ -268,7 +224,7 @@ export const issueCertificate = asyncHandler(async (req, res) => {
 
       try {
         const uploadedPreview = await uploadCertificatePreviewImageToCloudinary({
-          outPath: imageOutPath,
+          imageBuffer,
           certNo,
         });
         uploadedCloudinaryPreviewPublicId = uploadedPreview.publicId;
@@ -309,19 +265,18 @@ export const issueCertificate = asyncHandler(async (req, res) => {
         }
       }
 
-      removeFileIfExists(pdfOutPath);
-      removeFileIfExists(imageOutPath);
-
       // Rollback reserved DB row if PDF generation failed after create.
       if (cert?._id) {
         await Certificate.findByIdAndDelete(cert._id);
       }
       throw err;
-    } finally {
-      removeFileIfExists(pdfOutPath);
-      removeFileIfExists(imageOutPath);
     }
   }
+
+  return res.status(500).json({
+    ok: false,
+    message: "Failed to issue certificate after multiple retries.",
+  });
 });
 
 export const listCertificates = asyncHandler(async (req, res) => {
@@ -460,18 +415,6 @@ export const deleteCertificate = asyncHandler(async (req, res) => {
 
   await deleteCertificatePdfFromCloudinary(cert.certNo);
   await deleteCertificatePreviewImageFromCloudinary(cert.certNo);
-
-  if (cert.pdfUrl) {
-    const absPath = resolveSafeCertificateAssetPath(cert.pdfUrl);
-
-    removeFileIfExists(absPath);
-  }
-
-  if (cert.imageUrl) {
-    const absPath = resolveSafeCertificateAssetPath(cert.imageUrl);
-
-    removeFileIfExists(absPath);
-  }
 
   await Certificate.findByIdAndDelete(req.params.id);
   res.json({ ok: true, message: "Certificate deleted" });

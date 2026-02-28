@@ -11,6 +11,7 @@ import {
   Star,
   Award,
   Images,
+  Handshake,
   LogOut,
 } from "lucide-react";
 
@@ -35,6 +36,7 @@ export default function Sidebar({ collapsed = false }) {
     { to: "/admin/courses", label: "Courses", icon: BookOpen },
     { to: "/admin/attendance/report", label: "Attendance Report", icon: CalendarDays },
     { to: "/admin/gallery", label: "Gallery", icon: Images },
+    { to: "/admin/mou", label: "MoU Highlights", icon: Handshake },
     { to: "/admin/feedback", label: "Feedback", icon: Star },
     { to: "/admin/certificates", label: "Certificates", icon: Award },
   ];

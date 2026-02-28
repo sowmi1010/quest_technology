@@ -30,6 +30,8 @@ import FeedbackList from "../pages/admin/feedback/FeedbackList";
 import FeedbackForm from "../pages/admin/feedback/FeedbackForm";
 import GalleryList from "../pages/admin/gallery/GalleryList";
 import GalleryForm from "../pages/admin/gallery/GalleryForm";
+import MouList from "../pages/admin/mou/MouList";
+import MouForm from "../pages/admin/mou/MouForm";
 
 // (Add more later)
 // import StudentList from "../pages/admin/students/StudentList";
@@ -67,6 +69,9 @@ export default function AdminRoutes() {
           <Route path="gallery" element={<GalleryList />} />
           <Route path="gallery/new" element={<GalleryForm />} />
           <Route path="gallery/:id" element={<GalleryForm />} />
+          <Route path="mou" element={<MouList />} />
+          <Route path="mou/new" element={<MouForm />} />
+          <Route path="mou/:id" element={<MouForm />} />
         </Route>
       </Route>
 

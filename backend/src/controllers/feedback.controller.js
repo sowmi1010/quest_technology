@@ -2,6 +2,17 @@ import Feedback from "../models/Feedback.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getUploadedFileUrl } from "../utils/uploadFileUrl.js";
 
+function envFlagEnabled(name, fallback = false) {
+  const raw = String(process.env[name] ?? "").trim().toLowerCase();
+  if (!raw) return fallback;
+  return ["1", "true", "yes", "on"].includes(raw);
+}
+
+function envNumber(name, fallback) {
+  const n = Number(process.env[name]);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 /* =============================
    Create feedback
 ============================= */
@@ -37,7 +48,13 @@ export const listFeedback = asyncHandler(async (req, res) => {
   let query = {};
 
   if (isPublic) {
-    query = { rating: { $gte: 4 }, status: "PLACED" }; // only good ones
+    const minRating = envNumber("PUBLIC_FEEDBACK_MIN_RATING", 4);
+    const requirePlaced = envFlagEnabled("PUBLIC_FEEDBACK_REQUIRE_PLACED", false);
+
+    query = { rating: { $gte: minRating } };
+    if (requirePlaced) {
+      query.status = "PLACED";
+    }
   }
 
   const list = await Feedback.find(query).sort({ createdAt: -1 });

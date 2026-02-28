@@ -113,6 +113,24 @@ export default function PublicFooter() {
                 </div>
               </a>
 
+              {PUBLIC_CONTACT.phoneE164Secondary && (
+                <a
+                  href={`tel:${PUBLIC_CONTACT.phoneE164Secondary}`}
+                  className="group flex items-center gap-3 rounded-2xl border border-peacock-border/60 bg-white/35 px-4 py-3 text-sm text-peacock-muted
+                             transition hover:bg-white/50 hover:text-peacock-blue"
+                >
+                  <span className="grid h-10 w-10 place-items-center rounded-xl border border-peacock-border/50 bg-white/40">
+                    <IconPhone className="h-4 w-4" />
+                  </span>
+                  <div className="leading-tight">
+                    <div className="text-xs text-peacock-muted/80">Phone 2</div>
+                    <div className="font-semibold text-peacock-navy/80 group-hover:text-peacock-blue">
+                      {PUBLIC_CONTACT.phoneDisplaySecondary || PUBLIC_CONTACT.phoneE164Secondary}
+                    </div>
+                  </div>
+                </a>
+              )}
+
               <a
                 href={`mailto:${PUBLIC_CONTACT.email}`}
                 className="group flex items-center gap-3 rounded-2xl border border-peacock-border/60 bg-white/35 px-4 py-3 text-sm text-peacock-muted
@@ -140,6 +158,34 @@ export default function PublicFooter() {
                   </div>
                 </div>
               </div>
+
+              {(PUBLIC_CONTACT.twitter || PUBLIC_CONTACT.instagram) && (
+                <div className="rounded-2xl border border-peacock-border/60 bg-white/35 px-4 py-3 text-sm text-peacock-muted">
+                  <div className="text-xs text-peacock-muted/80">Social</div>
+                  <div className="mt-1 flex flex-wrap gap-3">
+                    {PUBLIC_CONTACT.twitter && (
+                      <a
+                        href={PUBLIC_CONTACT.twitter}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-semibold text-peacock-navy/80 underline underline-offset-4 hover:text-peacock-blue"
+                      >
+                        X (Twitter)
+                      </a>
+                    )}
+                    {PUBLIC_CONTACT.instagram && (
+                      <a
+                        href={PUBLIC_CONTACT.instagram}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-semibold text-peacock-navy/80 underline underline-offset-4 hover:text-peacock-blue"
+                      >
+                        Instagram
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* optional note */}

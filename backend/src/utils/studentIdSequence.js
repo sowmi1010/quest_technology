@@ -42,8 +42,18 @@ async function ensureStudentCounterSeeded() {
   );
 }
 
+async function syncStudentCounterToExistingMax() {
+  const maxSerial = await getCurrentMaxStudentSerial();
+  await SequenceCounter.updateOne(
+    { _id: STUDENT_COUNTER_KEY },
+    { $max: { value: maxSerial } },
+    { upsert: true },
+  );
+}
+
 export async function getNextStudentSerial() {
   await ensureStudentCounterSeeded();
+  await syncStudentCounterToExistingMax();
 
   const counter = await SequenceCounter.findByIdAndUpdate(
     STUDENT_COUNTER_KEY,

@@ -3,8 +3,6 @@ import cors from "cors";
 import helmet from "helmet";
 import hpp from "hpp";
 import morgan from "morgan";
-import path from "path";
-import { fileURLToPath } from "url";
 
 import authRoutes from "./routes/auth.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
@@ -17,6 +15,7 @@ import { notFound, errorHandler } from "./middleware/error.middleware.js";
 import certificateRoutes from "./routes/certificate.routes.js";
 import feedbackRoutes from "./routes/feedback.routes.js";
 import galleryRoutes from "./routes/gallery.routes.js";
+import mouRoutes from "./routes/mou.routes.js";
 import performanceRoutes from "./routes/performance.routes.js";
 
 function stripWrappingQuotes(value = "") {
@@ -35,6 +34,11 @@ function normalizeOrigin(value = "") {
   }
 }
 
+function isTrustedQuestVercelOrigin(origin = "") {
+  const normalized = normalizeOrigin(origin);
+  return /^https:\/\/quest-technology(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(normalized);
+}
+
 function getAllowedOrigins() {
   const envList = String(process.env.CORS_ORIGINS || "")
     .split(/[\n,]+/)
@@ -48,14 +52,13 @@ function getAllowedOrigins() {
     .map(normalizeOrigin)
     .filter(Boolean);
 
-  // Safe default for local dev if env is not set.
-  const fallbackDev = [
+  const defaults = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://quest-technology.vercel.app",
   ];
 
-  const finalList = configured.length ? configured : fallbackDev;
-  return [...new Set(finalList)];
+  return [...new Set([...defaults, ...configured])];
 }
 
 const app = express();
@@ -74,7 +77,7 @@ app.use(
       if (!origin) return callback(null, true);
 
       const normalized = normalizeOrigin(origin);
-      if (allowedOrigins.includes(normalized)) {
+      if (allowedOrigins.includes(normalized) || isTrustedQuestVercelOrigin(normalized)) {
         return callback(null, true);
       }
 
@@ -91,12 +94,6 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(morgan("dev"));
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Legacy/local files (including existing certificates) are still served here.
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
-
 app.get("/api/health", (req, res) => res.json({ ok: true, message: "API running" }));
 
 app.use("/api/auth", authRoutes);
@@ -109,6 +106,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/gallery", galleryRoutes);
+app.use("/api/mou", mouRoutes);
 app.use("/api/performance", performanceRoutes);
 // app.use("/api/placements", placementRoutes);
 
