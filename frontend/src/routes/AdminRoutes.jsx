@@ -32,6 +32,9 @@ import GalleryList from "../pages/admin/gallery/GalleryList";
 import GalleryForm from "../pages/admin/gallery/GalleryForm";
 import MouList from "../pages/admin/mou/MouList";
 import MouForm from "../pages/admin/mou/MouForm";
+import QuizList from "../pages/admin/quiz/QuizList";
+import QuizForm from "../pages/admin/quiz/QuizForm";
+import QuizAttempts from "../pages/admin/quiz/QuizAttempts";
 
 // (Add more later)
 // import StudentList from "../pages/admin/students/StudentList";
@@ -72,6 +75,10 @@ export default function AdminRoutes() {
           <Route path="mou" element={<MouList />} />
           <Route path="mou/new" element={<MouForm />} />
           <Route path="mou/:id" element={<MouForm />} />
+          <Route path="quizzes" element={<QuizList />} />
+          <Route path="quizzes/new" element={<QuizForm />} />
+          <Route path="quizzes/:id" element={<QuizForm />} />
+          <Route path="quizzes/:id/attempts" element={<QuizAttempts />} />
         </Route>
       </Route>
 

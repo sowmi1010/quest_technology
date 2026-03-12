@@ -17,6 +17,7 @@ import feedbackRoutes from "./routes/feedback.routes.js";
 import galleryRoutes from "./routes/gallery.routes.js";
 import mouRoutes from "./routes/mou.routes.js";
 import performanceRoutes from "./routes/performance.routes.js";
+import quizRoutes from "./routes/quiz.routes.js";
 
 function stripWrappingQuotes(value = "") {
   return String(value || "").trim().replace(/^['"`]+|['"`]+$/g, "");
@@ -108,6 +109,7 @@ app.use("/api/feedback", feedbackRoutes);
 app.use("/api/gallery", galleryRoutes);
 app.use("/api/mou", mouRoutes);
 app.use("/api/performance", performanceRoutes);
+app.use("/api/quizzes", quizRoutes);
 // app.use("/api/placements", placementRoutes);
 
 app.use(notFound);

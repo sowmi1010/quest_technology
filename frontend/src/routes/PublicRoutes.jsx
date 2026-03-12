@@ -7,10 +7,13 @@ import Enquiry from "../pages/public/Enquiry";
 import CourseDetails from "../pages/public/CourseDetails";
 import Gallery from "../pages/public/Gallery";
 import VerifyCertificate from "../pages/public/VerifyCertificate";
+import QuizTake from "../pages/public/QuizTake";
 
 export default function PublicRoutes() {
   return (
     <Routes>
+      <Route path="/quiz/:id" element={<QuizTake />} />
+
       <Route element={<PublicLayout />}>
         <Route path="/" element={<Home />} />
         <Route path="/courses" element={<Courses />} />
