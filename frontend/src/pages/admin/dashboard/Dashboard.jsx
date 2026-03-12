@@ -1,5 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  BookOpen,
+  Globe,
+  Phone,
+  BellDot,
+  RefreshCw,
+  Wrench,
+  Monitor,
+  Calculator,
+  IndianRupee,
+  Plus,
+  ClipboardList,
+  GraduationCap,
+  CreditCard,
+  AlertCircle,
+} from "lucide-react";
 import { api } from "../../../services/api";
 import { getPaymentsOverview } from "../../../services/paymentApi";
 import { getStoredAdmin } from "../../../utils/auth";
@@ -115,31 +131,35 @@ export default function Dashboard() {
         <div className="flex flex-wrap gap-2">
           <Link
             to="/admin/enquiries"
-            className="px-4 py-2 rounded-xl bg-peacock-blue text-white font-semibold hover:opacity-90"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-peacock-blue text-white font-semibold hover:opacity-90"
           >
+            <Phone size={18} />
             View Enquiries
           </Link>
 
           <Link
             to="/admin/courses"
-            className="px-4 py-2 rounded-xl bg-peacock-green text-white font-semibold hover:opacity-90"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-peacock-green text-white font-semibold hover:opacity-90"
           >
+            <BookOpen size={18} />
             Manage Courses
           </Link>
 
           <button
             onClick={load}
-            className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-white font-semibold hover:bg-white/10"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-white font-semibold hover:bg-white/10"
           >
-            🔄 Refresh
+            <RefreshCw size={18} />
+            Refresh
           </button>
         </div>
       </div>
 
       {/* Error */}
       {errMsg && (
-        <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
-          ❌ {errMsg}
+        <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200 flex items-center gap-2">
+          <AlertCircle size={18} />
+          <span>{errMsg}</span>
         </div>
       )}
 
@@ -149,26 +169,26 @@ export default function Dashboard() {
           title="Total Courses"
           value={stats.totalCourses}
           hint="All courses in admin panel"
-          icon="📚"
+          icon={BookOpen}
         />
         <StatCard
           title="Public Courses"
           value={stats.publicCourses}
           hint="Visible in public website"
-          icon="🌍"
+          icon={Globe}
           accent="green"
         />
         <StatCard
           title="Total Enquiries"
           value={stats.totalEnquiries}
           hint="All enquiries received"
-          icon="📞"
+          icon={Phone}
         />
         <StatCard
           title="New Enquiries"
           value={stats.newEnquiries}
           hint="Needs follow-up"
-          icon="🆕"
+          icon={BellDot}
           accent="blue"
         />
       </div>
@@ -185,42 +205,42 @@ export default function Dashboard() {
             title="New Students - Mech"
             value={stats.newStudentsMech}
             hint="Current month"
-            icon="M"
+            icon={Wrench}
             accent="blue"
           />
           <StatCard
             title="New Students - IT"
             value={stats.newStudentsIt}
             hint="Current month"
-            icon="IT"
+            icon={Monitor}
             accent="blue"
           />
           <StatCard
             title="New Students - Accounts"
             value={stats.newStudentsAccounts}
             hint="Current month"
-            icon="A"
+            icon={Calculator}
             accent="blue"
           />
           <StatCard
             title="New Payment Collected"
             value={money(stats.newPaymentCollected)}
             hint="Collected from new students"
-            icon="Rs"
+            icon={IndianRupee}
             accent="green"
           />
           <StatCard
             title="Existing Payment Collected"
             value={money(stats.existingPaymentCollected)}
             hint="Collected from existing students"
-            icon="Rs"
+            icon={IndianRupee}
             accent="green"
           />
           <StatCard
             title="Default Payment Due"
             value={money(stats.defaultPaymentDue)}
             hint="Pending balance amount"
-            icon="Rs"
+            icon={IndianRupee}
           />
         </div>
       </div>
@@ -280,7 +300,8 @@ export default function Dashboard() {
                             href={`tel:${e.phone}`}
                             className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 font-semibold text-white hover:bg-white/10"
                           >
-                            📞 {e.phone}
+                            <Phone size={16} />
+                            {e.phone}
                           </a>
                         </td>
 
@@ -317,11 +338,36 @@ export default function Dashboard() {
           </div>
 
           <div className="mt-4 grid gap-3">
-            <QuickLink to="/admin/courses/new" title="Add New Course" desc="Create course with image & syllabus" icon="➕" />
-            <QuickLink to="/admin/enquiries" title="Manage Enquiries" desc="Update status, notes & follow-ups" icon="📞" />
-            <QuickLink to="/admin/courses" title="Course List" desc="Edit course visibility for public" icon="📋" />
-            <QuickLink to="/admin/students" title="Students" desc="Profiles, attendance & payments" icon="🎓" />
-            <QuickLink to="/admin/payments" title="Payments" desc="View new, existing and due payment tabs" icon="💳" />
+            <QuickLink
+              to="/admin/courses/new"
+              title="Add New Course"
+              desc="Create course with image & syllabus"
+              icon={Plus}
+            />
+            <QuickLink
+              to="/admin/enquiries"
+              title="Manage Enquiries"
+              desc="Update status, notes & follow-ups"
+              icon={Phone}
+            />
+            <QuickLink
+              to="/admin/courses"
+              title="Course List"
+              desc="Edit course visibility for public"
+              icon={ClipboardList}
+            />
+            <QuickLink
+              to="/admin/students"
+              title="Students"
+              desc="Profiles, attendance & payments"
+              icon={GraduationCap}
+            />
+            <QuickLink
+              to="/admin/payments"
+              title="Payments"
+              desc="View new, existing and due payment tabs"
+              icon={CreditCard}
+            />
           </div>
 
           <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-white/60">
@@ -335,7 +381,7 @@ export default function Dashboard() {
 
 /* ---------- components ---------- */
 
-function StatCard({ title, value, hint, icon, accent }) {
+function StatCard({ title, value, hint, icon: Icon, accent }) {
   const accentCls =
     accent === "green"
       ? "border-emerald-400/20 bg-emerald-400/10"
@@ -345,26 +391,31 @@ function StatCard({ title, value, hint, icon, accent }) {
 
   return (
     <div className={`rounded-2xl border backdrop-blur-xl p-5 ${accentCls}`}>
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-xs text-white/50">{title}</div>
           <div className="mt-1 text-3xl font-extrabold text-white">{value}</div>
           {hint && <div className="mt-1 text-xs text-white/45">{hint}</div>}
         </div>
-        <div className="text-2xl">{icon}</div>
+
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-white">
+          {Icon ? <Icon size={22} strokeWidth={2} /> : null}
+        </div>
       </div>
     </div>
   );
 }
 
-function QuickLink({ to, title, desc, icon }) {
+function QuickLink({ to, title, desc, icon: Icon }) {
   return (
     <Link
       to={to}
       className="group block rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:bg-white/10"
     >
       <div className="flex items-start gap-3">
-        <div className="text-xl">{icon}</div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white group-hover:text-peacock-blue">
+          {Icon ? <Icon size={20} strokeWidth={2} /> : null}
+        </div>
         <div>
           <div className="font-semibold text-white group-hover:text-peacock-blue">
             {title}

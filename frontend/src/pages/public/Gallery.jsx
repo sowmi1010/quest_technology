@@ -18,18 +18,18 @@ const ALL_CATEGORY = "ALL";
 const categoryMeta = {
   WORKSHOPS_SEMINARS: {
     icon: IconSpark,
-    tone: "text-peacock-blue dark:text-sky-200",
-    chip: "from-peacock-blue/18 to-peacock-green/18",
+    tone: "text-cyan-700 dark:text-cyan-300",
+    chip: "from-cyan-500/25 to-violet-500/20",
   },
   HANDS_ON_COLLEGE_TRAINING: {
     icon: IconGraduationCap,
-    tone: "text-peacock-green dark:text-emerald-200",
-    chip: "from-peacock-green/18 to-peacock-blue/18",
+    tone: "text-violet-700 dark:text-violet-300",
+    chip: "from-violet-500/25 to-cyan-500/20",
   },
   EVENTS: {
     icon: IconCalendar,
-    tone: "text-peacock-blue dark:text-sky-200",
-    chip: "from-peacock-blue/18 to-peacock-green/18",
+    tone: "text-cyan-700 dark:text-cyan-300",
+    chip: "from-cyan-500/25 to-violet-500/20",
   },
 };
 
@@ -47,25 +47,15 @@ function useMotionPresets() {
 
   const container = {
     hidden: {},
-    show: {
-      transition: {
-        staggerChildren: 0.09,
-        delayChildren: 0.05,
-      },
-    },
-  };
-
-  const card = {
-    hidden: { opacity: 0, y: reduce ? 0 : 14, filter: "blur(6px)" },
-    show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.6, ease } },
+    show: { transition: { staggerChildren: 0.09, delayChildren: 0.05 } },
   };
 
   const fadeUp = {
-    hidden: { opacity: 0, y: reduce ? 0 : 12, filter: "blur(6px)" },
-    show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.6, ease } },
+    hidden: { opacity: 0, y: reduce ? 0 : 12, filter: "blur(10px)" },
+    show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.65, ease } },
   };
 
-  return { reduce, container, card, fadeUp };
+  return { reduce, container, fadeUp };
 }
 
 function clampIndex(i, len) {
@@ -73,30 +63,48 @@ function clampIndex(i, len) {
   return ((i % len) + len) % len;
 }
 
-/* ----------------------------- Premium Card ----------------------------- */
+/* ----------------------------- Neo Card ----------------------------- */
 
-function PremiumMasonryCard({ row, meta, index, onOpen, reduce }) {
+function NeoCard({ className = "", children, ...props }) {
+  return (
+    <motion.div
+      {...props}
+      className={
+        "group relative overflow-hidden rounded-3xl border border-white/12 bg-white/70 shadow-soft backdrop-blur-2xl " +
+        "dark:bg-slate-950/45 dark:border-white/10 " +
+        "before:pointer-events-none before:absolute before:inset-0 before:opacity-0 before:transition before:duration-500 " +
+        "before:bg-[radial-gradient(circle_at_30%_20%,rgba(34,211,238,0.18),transparent_55%),radial-gradient(circle_at_70%_70%,rgba(167,139,250,0.16),transparent_55%)] " +
+        "group-hover:before:opacity-100 " +
+        className
+      }
+    >
+      <div className="pointer-events-none absolute inset-0 rounded-3xl ring-1 ring-white/10" />
+      <div className="relative">{children}</div>
+    </motion.div>
+  );
+}
+
+/* ----------------------------- Masonry Card ----------------------------- */
+
+function NeoMasonryCard({ row, meta, index, onOpen, reduce }) {
   const Icon = meta?.icon || IconSpark;
 
   return (
     <motion.article
       variants={{
-        hidden: { opacity: 0, y: reduce ? 0 : 14, filter: "blur(6px)" },
-        show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.6, ease } },
+        hidden: { opacity: 0, y: reduce ? 0 : 14, filter: "blur(10px)" },
+        show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.65, ease } },
       }}
       initial="hidden"
       whileInView="show"
       viewport={{ once: true, amount: 0.2 }}
-      className="group relative mb-4 break-inside-avoid min-w-0 overflow-hidden rounded-3xl border border-peacock-border/60 bg-white/70 shadow-soft backdrop-blur-xl
-                 transition will-change-transform hover:-translate-y-1 hover:border-peacock-blue/40 hover:shadow-xl
-                 dark:border-white/10 dark:bg-slate-950/35"
+      className="group relative mb-4 break-inside-avoid min-w-0 overflow-hidden rounded-3xl border border-white/12 bg-white/70 shadow-soft backdrop-blur-2xl
+                 transition will-change-transform hover:-translate-y-1 dark:border-white/10 dark:bg-slate-950/45"
       style={{ animationDelay: `${index * 60}ms` }}
     >
-      {/* premium glow */}
-      <div className="pointer-events-none absolute -right-14 -top-14 h-48 w-48 rounded-full bg-peacock-blue/12 blur-3xl opacity-0 transition duration-500 group-hover:opacity-100" />
-      <div className="pointer-events-none absolute -left-16 -bottom-16 h-52 w-52 rounded-full bg-peacock-green/12 blur-3xl opacity-0 transition duration-500 group-hover:opacity-100" />
-      {/* shine sweep */}
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent,rgba(255,255,255,0.28),transparent)] opacity-0 transition duration-700 group-hover:opacity-100" />
+      {/* neon aura */}
+      <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(34,211,238,0.22),transparent_60%)] blur-3xl opacity-0 transition duration-500 group-hover:opacity-100" />
+      <div className="pointer-events-none absolute -left-16 -bottom-16 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(167,139,250,0.18),transparent_60%)] blur-3xl opacity-0 transition duration-500 group-hover:opacity-100" />
 
       <button type="button" onClick={onOpen} className="block w-full text-left">
         <div className="relative overflow-hidden">
@@ -106,34 +114,40 @@ function PremiumMasonryCard({ row, meta, index, onOpen, reduce }) {
             className="w-full object-cover"
             loading="lazy"
             whileHover={reduce ? undefined : { scale: 1.05 }}
-            transition={{ duration: 0.5, ease }}
+            transition={{ duration: 0.55, ease }}
           />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-transparent opacity-95" />
 
+          {/* soft vignette */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-95" />
+
+          {/* category chip */}
           <span
-            className={`absolute left-3 top-3 inline-flex items-center gap-2 rounded-full border border-white/30 bg-gradient-to-r ${meta.chip} px-3 py-1 text-[11px] font-extrabold text-white`}
+            className={`absolute left-3 top-3 inline-flex items-center gap-2 rounded-full border border-white/25 bg-gradient-to-r ${meta?.chip || "from-cyan-500/25 to-violet-500/20"} px-3 py-1 text-[11px] font-extrabold text-white`}
           >
             <Icon className="h-3.5 w-3.5" />
             {getGalleryCategoryLabel(row.category)}
           </span>
 
-          {/* corner badge */}
+          {/* view chip */}
           <span className="absolute right-3 top-3 rounded-2xl border border-white/20 bg-black/30 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-white/90">
             View
           </span>
+
+          {/* shine */}
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent,rgba(255,255,255,0.35),transparent)] opacity-0 transition duration-700 group-hover:opacity-100" />
         </div>
 
         <div className="p-4">
-          <h2 className="text-base font-extrabold tracking-tight text-peacock-navy dark:text-white">
+          <h2 className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white">
             {row.title?.trim() || "Quest Gallery Update"}
           </h2>
 
           {row.description ? (
-            <p className="mt-1 text-sm leading-relaxed text-peacock-muted dark:text-white/65">
+            <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-white/65">
               {row.description}
             </p>
           ) : (
-            <p className="mt-1 text-sm text-peacock-muted dark:text-white/55">Tap to view full photo</p>
+            <p className="mt-1 text-sm text-slate-600 dark:text-white/55">Tap to view full photo</p>
           )}
         </div>
       </button>
@@ -233,110 +247,81 @@ export default function Gallery() {
         canonicalPath="/gallery"
       />
 
-      {/* Premium background mesh */}
+      {/* Neo Luxury background mesh */}
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-[radial-gradient(900px_420px_at_12%_-10%,rgba(59,130,246,0.16),transparent_60%),radial-gradient(850px_420px_at_92%_10%,rgba(16,185,129,0.14),transparent_60%),radial-gradient(900px_520px_at_40%_120%,rgba(99,102,241,0.10),transparent_60%)] dark:bg-[radial-gradient(900px_420px_at_12%_-10%,rgba(59,130,246,0.12),transparent_60%),radial-gradient(850px_420px_at_92%_10%,rgba(16,185,129,0.11),transparent_60%),radial-gradient(900px_520px_at_40%_120%,rgba(99,102,241,0.08),transparent_60%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(900px_420px_at_12%_-10%,rgba(34,211,238,0.14),transparent_60%),radial-gradient(850px_420px_at_92%_10%,rgba(167,139,250,0.12),transparent_60%),radial-gradient(900px_520px_at_40%_120%,rgba(34,211,238,0.10),transparent_60%)] dark:bg-[radial-gradient(900px_420px_at_12%_-10%,rgba(34,211,238,0.11),transparent_60%),radial-gradient(850px_420px_at_92%_10%,rgba(167,139,250,0.10),transparent_60%),radial-gradient(900px_520px_at_40%_120%,rgba(34,211,238,0.08),transparent_60%)]" />
       </div>
 
       {/* HERO */}
-      <motion.div
-        variants={fadeUp}
-        initial="hidden"
-        animate="show"
-        className="relative overflow-hidden rounded-3xl border border-peacock-border/60 bg-white/70 p-6 shadow-soft backdrop-blur-xl md:p-8 dark:border-white/10 dark:bg-slate-950/35"
-      >
-        <div className="pointer-events-none absolute -left-24 -top-24 h-64 w-64 rounded-full bg-peacock-blue/15 blur-3xl" />
-        <div className="pointer-events-none absolute -right-24 -bottom-24 h-64 w-64 rounded-full bg-peacock-green/15 blur-3xl" />
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent,rgba(255,255,255,0.26),transparent)] opacity-25" />
+      <motion.div variants={fadeUp} initial="hidden" animate="show">
+        <NeoCard className="p-6 md:p-8">
+          <div className="pointer-events-none absolute -left-24 -top-24 h-64 w-64 rounded-full bg-cyan-400/14 blur-3xl" />
+          <div className="pointer-events-none absolute -right-24 -bottom-24 h-64 w-64 rounded-full bg-violet-400/12 blur-3xl" />
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent,rgba(255,255,255,0.28),transparent)] opacity-25" />
 
-        <p className="inline-flex items-center gap-2 rounded-full border border-peacock-border/60 bg-peacock-bg/70 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.18em] text-peacock-muted dark:border-white/10 dark:bg-white/5 dark:text-white/60">
-          <IconSpark className="h-4 w-4 text-peacock-blue dark:text-sky-200" />
-          Gallery
-        </p>
+          <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/60 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-700 backdrop-blur-xl dark:border-white/10 dark:bg-white/5 dark:text-white/70">
+            <IconSpark className="h-4 w-4 text-cyan-600 dark:text-cyan-300" />
+            Gallery
+          </p>
 
-        <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-peacock-navy md:text-4xl dark:text-white">
-          Workshops, College Training, and Events
-        </h1>
+          <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl dark:text-white">
+            Workshops, College Training, and Events
+          </h1>
 
-        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-peacock-muted md:text-base dark:text-white/60">
-          Explore moments from our workshops, seminars, hands-on sessions in colleges, and campus events.
-          Tap any photo to view in full screen.
-        </p>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-600 md:text-base dark:text-white/60">
+            Explore moments from our workshops, seminars, hands-on sessions in colleges, and campus events.
+            Tap any photo to view in full screen.
+          </p>
 
-        {/* Filters */}
-        <motion.div
-          variants={container}
-          initial="hidden"
-          animate="show"
-          className="mt-6 flex flex-wrap gap-2"
-        >
-          <motion.button
-            variants={fadeUp}
-            type="button"
-            onClick={() => selectCategory(ALL_CATEGORY)}
-            className={[
-              "rounded-full border px-4 py-2 text-xs font-extrabold uppercase tracking-[0.12em] transition",
-              category === ALL_CATEGORY
-                ? "border-peacock-blue bg-peacock-blue text-white"
-                : "border-peacock-border/70 bg-white/60 text-peacock-navy hover:bg-peacock-bg dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10",
-            ].join(" ")}
+          {/* Filters */}
+          <motion.div
+            variants={container}
+            initial="hidden"
+            animate="show"
+            className="mt-6 flex flex-wrap gap-2"
           >
-            All ({rows.length})
-          </motion.button>
+            <FilterChip
+              active={category === ALL_CATEGORY}
+              onClick={() => selectCategory(ALL_CATEGORY)}
+            >
+              All ({rows.length})
+            </FilterChip>
 
-          {GALLERY_CATEGORY_OPTIONS.map((item) => {
-            const meta = categoryMeta[item.value];
-            const Icon = meta?.icon || IconSpark;
-            const active = category === item.value;
+            {GALLERY_CATEGORY_OPTIONS.map((item) => {
+              const meta = categoryMeta[item.value];
+              const Icon = meta?.icon || IconSpark;
+              const active = category === item.value;
 
-            return (
-              <motion.button
-                key={item.value}
-                variants={fadeUp}
-                type="button"
-                onClick={() => selectCategory(item.value)}
-                className={[
-                  "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-extrabold uppercase tracking-[0.12em] transition",
-                  active
-                    ? "border-peacock-blue bg-peacock-blue text-white"
-                    : "border-peacock-border/70 bg-white/60 text-peacock-navy hover:bg-peacock-bg dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10",
-                ].join(" ")}
-              >
-                <Icon className={`h-4 w-4 ${active ? "text-white" : meta?.tone}`} />
-                {item.label} ({counts[item.value] || 0})
-              </motion.button>
-            );
-          })}
-        </motion.div>
+              return (
+                <FilterChip key={item.value} active={active} onClick={() => selectCategory(item.value)}>
+                  <Icon className={`h-4 w-4 ${active ? "text-white" : meta?.tone}`} />
+                  {item.label} ({counts[item.value] || 0})
+                </FilterChip>
+              );
+            })}
+          </motion.div>
+        </NeoCard>
       </motion.div>
 
       {/* BODY */}
       {loading ? (
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 9 }).map((_, idx) => (
-            <div key={idx} className="h-80 rounded-3xl bg-peacock-bg animate-pulse dark:bg-white/10" />
+            <ShimmerTile key={idx} />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <motion.div
-          variants={fadeUp}
-          initial="hidden"
-          animate="show"
-          className="mt-6 rounded-3xl border border-peacock-border/60 bg-white/70 p-8 text-center text-sm text-peacock-muted shadow-soft backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/35 dark:text-white/60"
-        >
-          No gallery photos in this category yet.
+        <motion.div variants={fadeUp} initial="hidden" animate="show" className="mt-6">
+          <NeoCard className="p-8 text-center text-sm text-slate-600 dark:text-white/60">
+            No gallery photos in this category yet.
+          </NeoCard>
         </motion.div>
       ) : (
-        <motion.div
-          variants={container}
-          initial="hidden"
-          animate="show"
-          className="mt-6 columns-1 gap-4 sm:columns-2 lg:columns-3"
-        >
+        <motion.div variants={container} initial="hidden" animate="show" className="mt-6 columns-1 gap-4 sm:columns-2 lg:columns-3">
           {filtered.map((row, index) => {
             const meta = categoryMeta[row.category] || categoryMeta.WORKSHOPS_SEMINARS;
             return (
-              <PremiumMasonryCard
+              <NeoMasonryCard
                 key={row._id}
                 row={row}
                 meta={meta}
@@ -361,12 +346,16 @@ export default function Gallery() {
           >
             <motion.div
               className="relative w-full max-w-6xl overflow-hidden rounded-3xl border border-white/15 bg-slate-950/55 shadow-2xl"
-              initial={{ opacity: 0, y: 18, scale: 0.98, filter: "blur(6px)" }}
+              initial={{ opacity: 0, y: 18, scale: 0.98, filter: "blur(10px)" }}
               animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-              exit={{ opacity: 0, y: 18, scale: 0.98, filter: "blur(6px)" }}
+              exit={{ opacity: 0, y: 18, scale: 0.98, filter: "blur(10px)" }}
               transition={{ duration: 0.24, ease: "easeOut" }}
               onClick={(e) => e.stopPropagation()}
             >
+              {/* neon top haze */}
+              <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-cyan-400/18 blur-3xl" />
+              <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-violet-400/14 blur-3xl" />
+
               {/* Top bar */}
               <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-3 border-b border-white/10 bg-black/25 p-3">
                 <div className="min-w-0">
@@ -448,5 +437,36 @@ export default function Gallery() {
         )}
       </AnimatePresence>
     </section>
+  );
+}
+
+/* ----------------------------- Small Components ----------------------------- */
+
+function FilterChip({ active, onClick, children }) {
+  return (
+    <motion.button
+      variants={{
+        hidden: { opacity: 0, y: 10, filter: "blur(8px)" },
+        show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.55, ease } },
+      }}
+      type="button"
+      onClick={onClick}
+      className={[
+        "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-extrabold uppercase tracking-[0.12em] transition",
+        active
+          ? "border-cyan-400/40 bg-gradient-to-r from-cyan-500/90 to-violet-500/85 text-white shadow-lift"
+          : "border-white/15 bg-white/60 text-slate-900 hover:bg-white/80 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10",
+      ].join(" ")}
+    >
+      {children}
+    </motion.button>
+  );
+}
+
+function ShimmerTile() {
+  return (
+    <div className="relative h-80 overflow-hidden rounded-3xl border border-white/12 bg-white/70 shadow-soft backdrop-blur-2xl dark:border-white/10 dark:bg-slate-950/45">
+      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.40),transparent)] dark:bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.14),transparent)]" />
+    </div>
   );
 }

@@ -9,7 +9,7 @@ function IconBase({
   title,
   ...rest
 }) {
-  const computedClass = className ?? `h-5 w-5`;
+  const computedClass = className ?? "h-5 w-5";
 
   return (
     <svg
@@ -23,7 +23,7 @@ function IconBase({
       className={computedClass}
       width={size}
       height={size}
-      aria-hidden={title ? undefined : "true"}
+      aria-hidden={title ? undefined : true}
       role={title ? "img" : "presentation"}
       focusable="false"
       {...rest}
@@ -251,7 +251,14 @@ export function IconSun(props) {
   );
 }
 
-export function IconStar({ className = "h-4 w-4", filled = false, size, strokeWidth, title, ...rest }) {
+export function IconStar({
+  className = "h-4 w-4",
+  filled = false,
+  size,
+  strokeWidth,
+  title,
+  ...rest
+}) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -264,7 +271,7 @@ export function IconStar({ className = "h-4 w-4", filled = false, size, strokeWi
       className={className}
       width={size ?? 16}
       height={size ?? 16}
-      aria-hidden={title ? undefined : "true"}
+      aria-hidden={title ? undefined : true}
       role={title ? "img" : "presentation"}
       focusable="false"
       {...rest}
@@ -301,4 +308,4 @@ export function IconX(props) {
       <path d="M18 6 6 18" />
     </IconBase>
   );
-}
+} 

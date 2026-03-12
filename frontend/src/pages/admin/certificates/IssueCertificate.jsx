@@ -230,16 +230,6 @@ export default function IssueCertificate() {
             Select a student, set dates, and generate PDF certificate.
           </p>
         </div>
-
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white/85
-                     hover:bg-white/10 transition active:scale-[0.98]"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          Back
-        </button>
       </div>
 
       <form onSubmit={onSubmit} className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
