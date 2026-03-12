@@ -35,9 +35,9 @@ function normalizeOrigin(value = "") {
   }
 }
 
-function isTrustedQuestVercelOrigin(origin = "") {
+function isTrustedQuestWorkersOrigin(origin = "") {
   const normalized = normalizeOrigin(origin);
-  return /^https:\/\/quest-technology(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(normalized);
+  return /^https:\/\/quest-technology(?:-[a-z0-9-]+)?\.questtech08\.workers\.dev$/i.test(normalized);
 }
 
 function getAllowedOrigins() {
@@ -56,7 +56,7 @@ function getAllowedOrigins() {
   const defaults = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://quest-technology.vercel.app",
+    "https://quest-technology.questtech08.workers.dev",
   ];
 
   return [...new Set([...defaults, ...configured])];
@@ -78,7 +78,7 @@ app.use(
       if (!origin) return callback(null, true);
 
       const normalized = normalizeOrigin(origin);
-      if (allowedOrigins.includes(normalized) || isTrustedQuestVercelOrigin(normalized)) {
+      if (allowedOrigins.includes(normalized) || isTrustedQuestWorkersOrigin(normalized)) {
         return callback(null, true);
       }
 
