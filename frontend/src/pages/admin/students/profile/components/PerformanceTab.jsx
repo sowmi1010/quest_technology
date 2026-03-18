@@ -45,6 +45,10 @@ function toInputDate(value) {
   return d.toISOString().slice(0, 10);
 }
 
+function getErrorMessage(error, fallbackMessage) {
+  return error?.response?.data?.message || fallbackMessage;
+}
+
 export default function PerformanceTab({ studentId }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -75,9 +79,9 @@ export default function PerformanceTab({ studentId }) {
     try {
       const res = await getStudentPerformanceUpdates(studentId);
       setRows(res?.data?.data || []);
-    } catch {
+    } catch (error) {
       setRows([]);
-      showToast("Failed to load performance updates", "error");
+      showToast(getErrorMessage(error, "Failed to load performance updates"), "error");
     } finally {
       setLoading(false);
     }
@@ -185,8 +189,8 @@ export default function PerformanceTab({ studentId }) {
       setConfirmDel({ open: false, id: "", toolName: "" });
       showToast("Performance update deleted");
       await load();
-    } catch {
-      showToast("Failed to delete performance update", "error");
+    } catch (error) {
+      showToast(getErrorMessage(error, "Failed to delete performance update"), "error");
     } finally {
       setBusy(false);
     }

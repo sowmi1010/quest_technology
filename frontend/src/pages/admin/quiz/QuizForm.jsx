@@ -234,17 +234,11 @@ export default function QuizForm() {
         const res = await updateQuiz(id, payload);
         setShareUrl(res?.data?.data?.shareUrl || shareUrl);
         setShareToken(res?.data?.data?.shareToken || shareToken);
-        showToast("Quiz updated", "success");
+        navigate("/admin/quizzes?updated=1", { replace: true });
         return;
       } else {
-        const res = await createQuiz(payload);
-        const quizId = res?.data?.data?._id;
-        showToast("Quiz created", "success");
-        if (quizId) {
-          navigate(`/admin/quizzes/${quizId}`, { replace: true });
-          return;
-        }
-        navigate("/admin/quizzes", { replace: true });
+        await createQuiz(payload);
+        navigate("/admin/quizzes?created=1", { replace: true });
         return;
       }
     } catch (error) {
@@ -309,13 +303,6 @@ export default function QuizForm() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <Link
-              to="/admin/quizzes"
-              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-white/85 hover:bg-white/10"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Link>
             <h1 className="text-xl sm:text-2xl font-bold text-white">
               {isEdit ? "Edit Quiz" : "Create Quiz"}
             </h1>
@@ -518,3 +505,4 @@ export default function QuizForm() {
     </div>
   );
 }
+

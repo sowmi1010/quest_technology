@@ -554,6 +554,21 @@ export const listQuizAttempts = asyncHandler(async (req, res) => {
   });
 });
 
+export const deleteQuizAttempt = asyncHandler(async (req, res) => {
+  const { id: quizId, attemptId } = req.params;
+
+  const attempt = await QuizAttempt.findOneAndDelete({ _id: attemptId, quizId });
+  if (!attempt) {
+    return res.status(404).json({ ok: false, message: "Quiz result not found" });
+  }
+
+  res.json({
+    ok: true,
+    message: "Quiz result deleted",
+    data: { _id: attempt._id },
+  });
+});
+
 /* =============================
    Public
 ============================= */

@@ -44,6 +44,10 @@ function statusPill(status) {
   return "border-white/10 bg-white/5 text-white/60";
 }
 
+function getErrorMessage(error, fallbackMessage) {
+  return error?.response?.data?.message || fallbackMessage;
+}
+
 export default function AttendanceCalendar({ studentId }) {
   const defaultMonth = new Date().toISOString().slice(0, 7);
   const [month, setMonth] = useState(defaultMonth);
@@ -65,7 +69,7 @@ export default function AttendanceCalendar({ studentId }) {
       for (const r of list) next[isoKey(r.date)] = r.status;
       setMap(next);
     } catch (e) {
-      setError("Failed to load attendance");
+      setError(getErrorMessage(e, "Failed to load attendance"));
     } finally {
       setLoading(false);
     }
@@ -95,7 +99,7 @@ export default function AttendanceCalendar({ studentId }) {
         else delete next[dateKey];
         return next;
       });
-      setError("Failed to save attendance. Please try again.");
+      setError(getErrorMessage(e, "Failed to save attendance. Please try again."));
     } finally {
       setSavingByDate((prev) => {
         const next = { ...prev };

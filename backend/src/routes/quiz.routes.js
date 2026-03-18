@@ -2,6 +2,7 @@ import express from "express";
 import { adminProtect } from "../middleware/auth.middleware.js";
 import {
   createQuiz,
+  deleteQuizAttempt,
   deleteQuiz,
   getCurrentQuizQuestion,
   getPublicQuizByShareToken,
@@ -32,5 +33,6 @@ router.patch("/:id", adminProtect, updateQuiz);
 router.delete("/:id", adminProtect, deleteQuiz);
 router.post("/:id/regenerate-link", adminProtect, regenerateQuizShareLink);
 router.get("/:id/attempts", adminProtect, listQuizAttempts);
+router.delete("/:id/attempts/:attemptId", adminProtect, deleteQuizAttempt);
 
 export default router;

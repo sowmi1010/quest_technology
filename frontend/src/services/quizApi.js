@@ -8,6 +8,8 @@ export const deleteQuiz = (id) => api.delete(`/quizzes/${id}`);
 export const regenerateQuizLink = (id) => api.post(`/quizzes/${id}/regenerate-link`);
 export const listQuizAttempts = (quizId, params = {}) =>
   api.get(`/quizzes/${quizId}/attempts`, { params });
+export const deleteQuizAttempt = (quizId, attemptId) =>
+  api.delete(`/quizzes/${quizId}/attempts/${attemptId}`);
 
 export const getPublicQuiz = (shareToken) => api.get(`/quizzes/public/${shareToken}`);
 export const registerQuizAttempt = (shareToken, payload) =>

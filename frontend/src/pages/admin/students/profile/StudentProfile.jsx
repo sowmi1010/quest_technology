@@ -17,6 +17,9 @@ import {
 
 import { adminGetStudentMaster } from "../../../../services/studentApi";
 import { resolveAssetUrl } from "../../../../utils/apiConfig";
+import AttendanceCalendar from "./components/AttendanceCalendar";
+import PaymentsTab from "./components/PaymentsTab";
+import PerformanceTab from "./components/PerformanceTab";
 
 function formatDate(value) {
   if (!value) return "-";
@@ -305,13 +308,6 @@ export default function StudentProfile() {
               {loading ? "Refreshing..." : "Refresh"}
             </button>
 
-            <Link
-              to="/admin/students"
-              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white/85 hover:bg-white/10"
-            >
-              <ArrowLeft className="h-5 w-5" />
-              Back
-            </Link>
 
             <Link
               to={`/admin/students/${student._id}`}
@@ -344,6 +340,19 @@ export default function StudentProfile() {
           <InfoCard label="Father Name" value={student.fatherName} />
           <InfoCard label="Father Number" value={student.fatherNumber} />
           <InfoCard label="Address" value={student.address} />
+        </div>
+      </section>
+
+      <section className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-5 sm:p-6 backdrop-blur-xl">
+        <h2 className="text-base font-extrabold text-white">Manual Entry</h2>
+        <p className="mt-2 text-sm text-white/65">
+          Add or update attendance, performance, and payments for this student.
+        </p>
+
+        <div className="mt-4 grid grid-cols-1 gap-4">
+          <AttendanceCalendar studentId={student._id} />
+          <PaymentsTab studentId={student._id} />
+          <PerformanceTab studentId={student._id} />
         </div>
       </section>
 

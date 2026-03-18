@@ -34,6 +34,10 @@ function MethodIcon({ method }) {
   return <Banknote className="h-4 w-4" />;
 }
 
+function getErrorMessage(error, fallbackMessage) {
+  return error?.response?.data?.message || fallbackMessage;
+}
+
 export default function PaymentsTab({ studentId }) {
   const [rows, setRows] = useState([]);
   const [summary, setSummary] = useState({});
@@ -63,10 +67,10 @@ export default function PaymentsTab({ studentId }) {
       const res = await getStudentPayments(studentId);
       setRows(res?.data?.data?.payments || []);
       setSummary(res?.data?.data?.summary || {});
-    } catch {
+    } catch (error) {
       setRows([]);
       setSummary({});
-      showToast("Failed to load payments", "error");
+      showToast(getErrorMessage(error, "Failed to load payments"), "error");
     } finally {
       setLoading(false);
     }
@@ -102,8 +106,8 @@ export default function PaymentsTab({ studentId }) {
       setAmount("");
       showToast("Payment added", "success");
       await load();
-    } catch {
-      showToast("Failed to add payment", "error");
+    } catch (error) {
+      showToast(getErrorMessage(error, "Failed to add payment"), "error");
     } finally {
       setBusy(false);
     }
@@ -127,8 +131,8 @@ export default function PaymentsTab({ studentId }) {
       showToast("Payment deleted", "success");
       setConfirmDel({ open: false, id: "", amount: 0, date: "" });
       await load();
-    } catch {
-      showToast("Failed to delete payment", "error");
+    } catch (error) {
+      showToast(getErrorMessage(error, "Failed to delete payment"), "error");
     } finally {
       setBusy(false);
     }

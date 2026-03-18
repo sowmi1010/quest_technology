@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   BadgeCheck,
   Copy,
@@ -50,6 +50,8 @@ function statusPill(active) {
 }
 
 export default function QuizList() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -84,6 +86,23 @@ export default function QuizList() {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const updated = params.get("updated");
+    const created = params.get("created");
+
+    if (updated === "1") {
+      showToast("Quiz updated successfully", "success");
+      navigate("/admin/quizzes", { replace: true });
+      return;
+    }
+
+    if (created === "1") {
+      showToast("Quiz created successfully", "success");
+      navigate("/admin/quizzes", { replace: true });
+    }
+  }, [location.search, navigate]);
 
   const summary = useMemo(() => {
     const total = rows.length;
@@ -560,3 +579,4 @@ export default function QuizList() {
     </div>
   );
 }
+

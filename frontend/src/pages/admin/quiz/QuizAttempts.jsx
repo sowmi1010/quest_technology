@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, RefreshCcw, Search } from "lucide-react";
+import { ArrowLeft, RefreshCcw, Search, Trash2 } from "lucide-react";
 
 import AdminToast from "../../../components/admin/common/AdminToast";
-import { listQuizAttempts } from "../../../services/quizApi";
+import ConfirmModal from "../../../components/admin/common/ConfirmModal";
+import { deleteQuizAttempt, listQuizAttempts } from "../../../services/quizApi";
 
 function fmtDate(value) {
   try {
@@ -36,6 +37,13 @@ export default function QuizAttempts() {
 
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [deletingId, setDeletingId] = useState("");
+  const [confirmDel, setConfirmDel] = useState({
+    open: false,
+    attemptId: "",
+    studentName: "",
+    phoneNumber: "",
+  });
 
   const [toast, setToast] = useState({ show: false, type: "success", message: "" });
 
@@ -81,6 +89,36 @@ export default function QuizAttempts() {
     await load(1, query);
   };
 
+  const askDelete = (row) => {
+    setConfirmDel({
+      open: true,
+      attemptId: row._id,
+      studentName: row.studentName || "",
+      phoneNumber: row.phoneNumber || "",
+    });
+  };
+
+  const closeDeleteModal = () => {
+    if (deletingId) return;
+    setConfirmDel({ open: false, attemptId: "", studentName: "", phoneNumber: "" });
+  };
+
+  const doDelete = async () => {
+    if (!confirmDel.attemptId || deletingId) return;
+
+    setDeletingId(confirmDel.attemptId);
+    try {
+      await deleteQuizAttempt(id, confirmDel.attemptId);
+      showToast("Quiz result deleted", "success");
+      setConfirmDel({ open: false, attemptId: "", studentName: "", phoneNumber: "" });
+      await load(page, query);
+    } catch (error) {
+      showToast(error?.response?.data?.message || "Failed to delete result", "error");
+    } finally {
+      setDeletingId("");
+    }
+  };
+
   return (
     <div className="p-4 sm:p-6">
       <AdminToast
@@ -93,13 +131,7 @@ export default function QuizAttempts() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <Link
-              to="/admin/quizzes"
-              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-white/85 hover:bg-white/10"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Link>
+           
             <h1 className="text-xl sm:text-2xl font-bold text-white">Quiz Results</h1>
           </div>
           <p className="mt-2 text-sm text-white/60">{quiz.title || "Quiz"}: registrations and scores</p>
@@ -179,6 +211,7 @@ export default function QuizAttempts() {
                   <th className="p-4 text-left font-semibold text-white/70">Answered</th>
                   <th className="p-4 text-left font-semibold text-white/70">Started</th>
                   <th className="p-4 text-left font-semibold text-white/70">Submitted</th>
+                  <th className="p-4 text-left font-semibold text-white/70">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -206,12 +239,23 @@ export default function QuizAttempts() {
                     <td className="p-4">{row.answeredCount || 0}</td>
                     <td className="p-4 text-white/70">{fmtDate(row.startedAt)}</td>
                     <td className="p-4 text-white/70">{fmtDate(row.submittedAt)}</td>
+                    <td className="p-4">
+                      <button
+                        type="button"
+                        onClick={() => askDelete(row)}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-rose-200/20 bg-rose-500/10 px-4 py-2 text-xs font-bold text-rose-200 hover:bg-rose-500/15 transition disabled:opacity-60"
+                        disabled={Boolean(deletingId)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 ))}
 
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan="8" className="p-6 text-center text-white/60">
+                    <td colSpan="9" className="p-6 text-center text-white/60">
                       No registrations found.
                     </td>
                   </tr>
@@ -221,6 +265,47 @@ export default function QuizAttempts() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        open={confirmDel.open}
+        title="Delete quiz result?"
+        onClose={closeDeleteModal}
+      >
+        <div className="text-sm text-white/70">
+          This will permanently remove this student result from the quiz report.
+        </div>
+
+        <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
+          <div className="flex items-center justify-between">
+            <span className="text-white/60">Student</span>
+            <span className="font-bold text-white">{confirmDel.studentName || "-"}</span>
+          </div>
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-white/60">Phone</span>
+            <span className="font-bold text-white">{confirmDel.phoneNumber || "-"}</span>
+          </div>
+        </div>
+
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={closeDeleteModal}
+            className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white/85 hover:bg-white/10 disabled:opacity-60"
+            disabled={Boolean(deletingId)}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            onClick={doDelete}
+            className="flex-1 rounded-2xl bg-rose-500/85 px-4 py-3 text-sm font-bold text-white transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
+            disabled={Boolean(deletingId)}
+          >
+            {deletingId ? "Deleting..." : "Delete"}
+          </button>
+        </div>
+      </ConfirmModal>
 
       <div className="mt-4 flex items-center justify-between">
         <div className="text-xs text-white/55">
