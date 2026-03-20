@@ -234,7 +234,6 @@ export default function QuizAttempts() {
                     </td>
                     <td className="p-4">
                       {row.score || 0} / {row.totalQuestions || 0}
-                      <div className="text-xs text-white/50">{row.percentage || 0}%</div>
                     </td>
                     <td className="p-4">{row.answeredCount || 0}</td>
                     <td className="p-4 text-white/70">{fmtDate(row.startedAt)}</td>

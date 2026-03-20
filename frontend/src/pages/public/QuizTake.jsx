@@ -470,7 +470,7 @@ export default function QuizTake() {
                 </p>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <div className="text-xs text-white/60">Score</div>
                   <div className="mt-2 text-2xl font-bold text-white">
@@ -481,10 +481,6 @@ export default function QuizTake() {
                   <div className="text-xs text-white/60">Correct Answers</div>
                   <div className="mt-2 text-2xl font-bold text-white">{result.correctAnswers || 0}</div>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-xs text-white/60">Percentage</div>
-                  <div className="mt-2 text-2xl font-bold text-white">{result.percentage || 0}%</div>
-                </div>
               </div>
             </div>
           ) : null}
@@ -493,3 +489,4 @@ export default function QuizTake() {
     </div>
   );
 }
+
