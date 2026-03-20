@@ -85,7 +85,7 @@ export default function CourseList() {
   }, [rows, query, publicFilter, sortBy]);
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>

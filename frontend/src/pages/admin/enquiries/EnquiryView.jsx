@@ -115,22 +115,14 @@ export default function EnquiryView() {
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
           <h1 className="text-xl font-bold text-white">Enquiry</h1>
           <p className="mt-2 text-sm text-white/60">Not found or failed to load.</p>
-          <button
-            className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-sky-500/85 px-5 py-3 text-sm font-bold text-white
-                       transition hover:brightness-110 active:scale-[0.98]"
-            onClick={() => navigate(-1)}
-            type="button"
-          >
-            <ArrowLeft className="h-5 w-5" />
-            Go Back
-          </button>
+         
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="">
       {/* Toast */}
       <AnimatePresence>
         {toast.show && (
@@ -164,16 +156,7 @@ export default function EnquiryView() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white/85
-                       hover:bg-white/10 transition active:scale-[0.98]"
-          >
-            <ArrowLeft className="h-5 w-5" />
-            Back
-          </button>
-
+         
           <a
             className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500/85 px-4 py-3 text-sm font-bold text-white
                        shadow-[0_18px_45px_-25px_rgba(16,185,129,0.65)]

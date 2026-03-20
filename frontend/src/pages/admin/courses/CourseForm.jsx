@@ -359,7 +359,7 @@ export default function CourseForm() {
   }
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="">
       {/* Toast */}
       <AnimatePresence>
         {toast.show && (

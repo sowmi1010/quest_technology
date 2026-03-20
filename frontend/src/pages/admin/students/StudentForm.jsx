@@ -305,7 +305,7 @@ export default function StudentForm() {
   };
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="">
       <Toast
         show={toast.show}
         type={toast.type}

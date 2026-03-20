@@ -47,9 +47,9 @@ export default function AdminLayout() {
           </div>
 
           {/* Content */}
-          <div className="flex-1 min-w-0 overflow-hidden p-4 sm:p-6">
+          <div className="flex-1 min-w-0 overflow-hidden">
             <motion.main
-              className="h-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow-[0_20px_60px_-25px_rgba(0,0,0,0.8)] backdrop-blur-xl"
+              className="h-full overflow-hidden  border border-white/10 bg-white/5 shadow-[0_20px_60px_-25px_rgba(0,0,0,0.8)] backdrop-blur-xl"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35, ease: "easeOut" }}

@@ -75,7 +75,7 @@ export default function GalleryList() {
   };
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="">
       <AnimatePresence>
         {toast.show && (
           <motion.div

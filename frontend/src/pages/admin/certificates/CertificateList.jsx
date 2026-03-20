@@ -141,7 +141,7 @@ export default function CertificateList() {
   };
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="">
       <AdminToast
         show={toast.show}
         type={toast.type}

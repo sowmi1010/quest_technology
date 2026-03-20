@@ -9,31 +9,36 @@ import {
   Trash2,
   Pencil,
   Star,
+  Building2,
+  MessageSquare,
+  Users,
 } from "lucide-react";
 import AdminToast from "../../../components/admin/common/AdminToast";
 import ConfirmModal from "../../../components/admin/common/ConfirmModal";
 
 import { resolveAssetUrl } from "../../../utils/apiConfig";
 
+const FEEDBACK_STATUS_OPTIONS = ["NEW", "CONTACTED", "PLACED"];
 
-function fmtDate(d) {
+function fmtDate(value) {
   try {
-    return d ? new Date(d).toLocaleDateString() : "-";
+    return value ? new Date(value).toLocaleDateString("en-IN") : "-";
   } catch {
     return "-";
   }
 }
 
 function statusPill(status) {
-  const s = String(status || "").toLowerCase();
-  if (s.includes("new")) return "border-sky-200/30 bg-sky-500/15 text-sky-200";
-  if (s.includes("contact")) return "border-amber-200/30 bg-amber-500/15 text-amber-200";
-  if (s.includes("plac")) return "border-emerald-200/30 bg-emerald-500/15 text-emerald-200";
+  const s = String(status || "").toUpperCase();
+  if (s === "NEW") return "border-sky-200/30 bg-sky-500/15 text-sky-200";
+  if (s === "CONTACTED") return "border-amber-200/30 bg-amber-500/15 text-amber-200";
+  if (s === "PLACED") return "border-emerald-200/30 bg-emerald-500/15 text-emerald-200";
   return "border-white/10 bg-white/5 text-white/80";
 }
 
-function Stars({ rating = 0 }) {
+function Stars({ rating = 0, compact = false }) {
   const r = Math.max(0, Math.min(5, Number(rating) || 0));
+
   return (
     <div className="inline-flex items-center gap-1">
       {Array.from({ length: 5 }).map((_, i) => {
@@ -42,14 +47,53 @@ function Stars({ rating = 0 }) {
           <Star
             key={i}
             className={[
-              "h-4 w-4",
-              active ? "text-amber-200 fill-current" : "text-white/35",
+              compact ? "h-3.5 w-3.5" : "h-4 w-4",
+              active ? "fill-current text-amber-200" : "text-white/35",
             ].join(" ")}
           />
         );
       })}
-      <span className="ml-1 text-xs font-bold text-white/70">{r}/5</span>
+      <span className="ml-1 text-xs font-semibold text-white/70">{r}/5</span>
     </div>
+  );
+}
+
+function MetricCard({ title, value, icon: Icon, tone = "sky" }) {
+  const toneClass =
+    tone === "emerald"
+      ? "border-emerald-200/20 bg-emerald-500/10"
+      : tone === "amber"
+      ? "border-amber-200/20 bg-amber-500/10"
+      : "border-sky-200/20 bg-sky-500/10";
+
+  return (
+    <div className={`rounded-xl border px-3.5 py-3 ${toneClass}`}>
+      <div className="flex items-center gap-2">
+        <div className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/5">
+          <Icon className="h-4 w-4 text-white/80" />
+        </div>
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/50">{title}</div>
+          <div className="text-base font-bold text-white">{value}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusSelect({ value, onChange }) {
+  return (
+    <select
+      value={value || "NEW"}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white outline-none focus:ring-2 focus:ring-sky-400/35 [&>option]:bg-slate-900"
+    >
+      {FEEDBACK_STATUS_OPTIONS.map((option) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -118,11 +162,22 @@ export default function FeedbackList() {
     return list;
   }, [rows, query, statusFilter, sortBy]);
 
+  const stats = useMemo(() => {
+    const total = rows.length;
+    const placed = rows.filter((r) => String(r.status || "").toUpperCase() === "PLACED").length;
+    const contacted = rows.filter((r) => String(r.status || "").toUpperCase() === "CONTACTED").length;
+    const avgRating = total
+      ? (rows.reduce((sum, row) => sum + Number(row.rating || 0), 0) / total).toFixed(1)
+      : "0.0";
+
+    return { total, placed, contacted, avgRating };
+  }, [rows]);
+
   const onStatusChange = async (id, status) => {
     try {
       await updateFeedback(id, { status });
       showToast("Status updated", "success");
-      await load();
+      setRows((prev) => prev.map((row) => (row._id === id ? { ...row, status } : row)));
     } catch {
       showToast("Failed to update status", "error");
     }
@@ -137,15 +192,15 @@ export default function FeedbackList() {
     try {
       await deleteFeedback(id);
       showToast("Deleted successfully", "success");
+      setRows((prev) => prev.filter((row) => row._id !== id));
       setConfirmDel({ open: false, id: "", name: "" });
-      await load();
     } catch {
       showToast("Delete failed", "error");
     }
   };
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="space-y-4">
       <AdminToast
         show={toast.show}
         type={toast.type}
@@ -153,207 +208,258 @@ export default function FeedbackList() {
         onClose={() => setToast({ show: false, message: "", type: toast.type })}
       />
 
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Feedback</h1>
-          <p className="mt-1 text-sm text-white/60">Manage student feedback & placements.</p>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white/85
-                       hover:bg-white/10 transition active:scale-[0.98]"
-          >
-            <RefreshCcw className="h-5 w-5" />
-            Refresh
-          </button>
-
-          <Link
-            to="/admin/feedback/new"
-            className="inline-flex items-center gap-2 rounded-2xl bg-sky-500/85 px-5 py-3 text-sm font-bold text-white
-                       shadow-[0_18px_45px_-25px_rgba(56,189,248,0.65)]
-                       transition hover:brightness-110 active:scale-[0.98]"
-          >
-            <Plus className="h-5 w-5" />
-            Add Feedback
-          </Link>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-        <div className="grid gap-3 md:grid-cols-[1fr_240px_180px]">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search name / course / company / feedback..."
-              className="w-full rounded-2xl border border-white/10 bg-white/5 pl-12 pr-4 py-3 text-sm text-white placeholder:text-white/35 outline-none
-                         focus:ring-2 focus:ring-sky-400/40 focus:border-sky-400/30 transition"
-            />
+      <section className="rounded-2xl border border-white/10 bg-slate-950/35 p-5 backdrop-blur-xl sm:p-6">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/45">Admin</p>
+            <h1 className="mt-1 text-2xl font-extrabold text-white sm:text-3xl">Feedback</h1>
+            <p className="mt-1 text-sm text-white/65">Clear view to manage student testimonials and placement feedback.</p>
           </div>
 
-          <div className="relative">
-            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full appearance-none rounded-2xl border border-white/10 bg-white/5 pl-12 pr-10 py-3 text-sm text-white outline-none
-                         focus:ring-2 focus:ring-sky-400/40 [&>option]:bg-white [&>option]:text-slate-900"
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={load}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white/90 transition hover:bg-white/15"
             >
-              <option value="all">Status: All</option>
-              {uniqueStatuses.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+              <RefreshCcw className="h-4 w-4" />
+              Refresh
+            </button>
+
+            <Link
+              to="/admin/feedback/new"
+              className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-400"
+            >
+              <Plus className="h-4 w-4" />
+              Add Feedback
+            </Link>
           </div>
-
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="w-full appearance-none rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none
-                       focus:ring-2 focus:ring-sky-400/40 [&>option]:bg-white [&>option]:text-slate-900"
-          >
-            <option value="latest">Sort: Latest</option>
-            <option value="oldest">Sort: Oldest</option>
-          </select>
         </div>
-      </div>
 
-      {/* Table */}
-      <div className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard title="Total" value={stats.total} icon={Users} tone="sky" />
+          <MetricCard title="Placed" value={stats.placed} icon={Building2} tone="emerald" />
+          <MetricCard title="Contacted" value={stats.contacted} icon={MessageSquare} tone="amber" />
+          <MetricCard title="Average Rating" value={`${stats.avgRating}/5`} icon={Star} tone="sky" />
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-slate-950/30 p-4 backdrop-blur-xl sm:p-5">
+        <div className="grid gap-3 lg:grid-cols-12">
+          <label className="lg:col-span-7">
+            <span className="mb-2 inline-block text-xs font-semibold uppercase tracking-[0.14em] text-white/45">Search</span>
+            <span className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3.5 py-2.5">
+              <Search className="h-4 w-4 text-white/45" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Name, course, company or feedback"
+                className="w-full bg-transparent text-sm text-white placeholder:text-white/45 outline-none"
+              />
+            </span>
+          </label>
+
+          <label className="lg:col-span-3">
+            <span className="mb-2 inline-block text-xs font-semibold uppercase tracking-[0.14em] text-white/45">Status</span>
+            <span className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3.5 py-2.5">
+              <Filter className="h-4 w-4 text-white/45" />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full bg-transparent text-sm font-semibold text-white outline-none [&>option]:bg-slate-900"
+              >
+                <option value="all">All Status</option>
+                {uniqueStatuses.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </span>
+          </label>
+
+          <label className="lg:col-span-2">
+            <span className="mb-2 inline-block text-xs font-semibold uppercase tracking-[0.14em] text-white/45">Sort</span>
+            <span className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3.5 py-2.5">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full bg-transparent text-sm font-semibold text-white outline-none [&>option]:bg-slate-900"
+              >
+                <option value="latest">Latest</option>
+                <option value="oldest">Oldest</option>
+              </select>
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/30 backdrop-blur-xl">
         {loading ? (
           <div className="p-6">
-            <div className="h-5 w-48 rounded bg-white/10 animate-pulse mb-4" />
-            <div className="space-y-3">
+            <div className="grid gap-3">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="h-12 rounded-2xl bg-white/10 animate-pulse" />
+                <div key={i} className="h-12 animate-pulse rounded-xl bg-white/10" />
               ))}
             </div>
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="p-8 text-center text-sm text-white/65">No feedback found.</div>
         ) : (
-          <div className="max-h-[70vh] overflow-auto">
-            <table className="w-full text-sm text-white/85">
-              <thead className="sticky top-0 z-10 bg-slate-950/70 backdrop-blur-xl">
-                <tr className="border-b border-white/10">
-                  <th className="p-4 text-left font-semibold text-white/70">Date</th>
-                  <th className="p-4 text-left font-semibold text-white/70">Image</th>
-                  <th className="p-4 text-left font-semibold text-white/70">Name</th>
-                  <th className="p-4 text-left font-semibold text-white/70">Course</th>
-                  <th className="p-4 text-left font-semibold text-white/70">Rating</th>
-                  <th className="p-4 text-left font-semibold text-white/70">Feedback</th>
-                  <th className="p-4 text-left font-semibold text-white/70">Company</th>
-                  <th className="p-4 text-left font-semibold text-white/70">Status</th>
-                  <th className="p-4 text-left font-semibold text-white/70">Action</th>
-                </tr>
-              </thead>
+          <>
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full min-w-[980px] text-sm text-white/85">
+                <thead className="sticky top-0 z-10 bg-slate-950/85 backdrop-blur-xl">
+                  <tr className="border-b border-white/10">
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-white/60">Student</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-white/60">Rating</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-white/60">Feedback</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-white/60">Company</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-white/60">Status</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-white/60">Actions</th>
+                  </tr>
+                </thead>
 
-              <tbody>
-                {filtered.map((r) => (
-                  <tr key={r._id} className="border-t border-white/10 hover:bg-white/5 transition align-top">
-                    <td className="p-4 text-white/80">{fmtDate(r.createdAt)}</td>
+                <tbody>
+                  {filtered.map((r) => (
+                    <tr key={r._id} className="border-t border-white/10 align-top transition hover:bg-white/[0.04]">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          {r.imageUrl ? (
+                            <img
+                              src={resolveAssetUrl(r.imageUrl)}
+                              alt={r.name}
+                              className="h-11 w-11 rounded-xl border border-white/10 object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="grid h-11 w-11 place-items-center rounded-xl border border-white/10 bg-white/5 text-[10px] font-bold text-white/45">
+                              NO
+                            </div>
+                          )}
 
-                    <td className="p-4">
+                          <div className="min-w-0">
+                            <div className="truncate font-semibold text-white">{r.name || "-"}</div>
+                            <div className="mt-0.5 text-xs text-white/55">{r.course || "No course"}</div>
+                            <div className="mt-0.5 text-xs text-white/45">{fmtDate(r.createdAt)}</div>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-3">
+                        <Stars rating={r.rating} />
+                      </td>
+
+                      <td className="px-4 py-3 max-w-[340px]">
+                        <p className="line-clamp-3 leading-relaxed text-white/80">{r.feedback || "-"}</p>
+                      </td>
+
+                      <td className="px-4 py-3 text-white/85">{r.company || "-"}</td>
+
+                      <td className="px-4 py-3 min-w-[180px]">
+                        <div className="space-y-2">
+                          <span className={["inline-flex rounded-lg border px-2.5 py-1 text-xs font-semibold", statusPill(r.status)].join(" ")}>
+                            {r.status || "NEW"}
+                          </span>
+                          <StatusSelect value={r.status} onChange={(next) => onStatusChange(r._id, next)} />
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          <Link
+                            to={`/admin/feedback/${r._id}`}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/90 transition hover:bg-white/15"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                            Edit
+                          </Link>
+
+                          <button
+                            type="button"
+                            onClick={() => askDelete(r._id, r.name)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-rose-300/25 bg-rose-500/15 px-3 py-1.5 text-xs font-semibold text-rose-100 transition hover:bg-rose-500/25"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="grid gap-3 p-4 lg:hidden">
+              {filtered.map((r) => (
+                <article key={r._id} className="rounded-xl border border-white/10 bg-white/5 p-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
                       {r.imageUrl ? (
                         <img
                           src={resolveAssetUrl(r.imageUrl)}
                           alt={r.name}
-                          className="h-10 w-10 rounded-2xl object-cover border border-white/10"
+                          className="h-11 w-11 rounded-xl border border-white/10 object-cover"
                           loading="lazy"
                         />
                       ) : (
-                        <div className="h-10 w-10 rounded-2xl bg-white/10 border border-white/10 grid place-items-center text-[11px] text-white/50">
-                          No
+                        <div className="grid h-11 w-11 place-items-center rounded-xl border border-white/10 bg-white/5 text-[10px] font-bold text-white/45">
+                          NO
                         </div>
                       )}
-                    </td>
 
-                    <td className="p-4">
-                      <div className="font-bold text-white">{r.name}</div>
-                      <div className="text-xs text-white/45">{r._id}</div>
-                    </td>
-
-                    <td className="p-4">{r.course || "-"}</td>
-
-                    <td className="p-4">
-                      <Stars rating={r.rating} />
-                    </td>
-
-                    <td className="p-4 max-w-[420px]">
-                      <div className="text-white/80 leading-relaxed line-clamp-3">{r.feedback}</div>
-                    </td>
-
-                    <td className="p-4">{r.company || "-"}</td>
-
-                    <td className="p-4">
-                      <div className="flex flex-col gap-2">
-                        <span
-                          className={[
-                            "inline-flex w-fit rounded-2xl border px-3 py-1.5 text-xs font-bold",
-                            statusPill(r.status),
-                          ].join(" ")}
-                        >
-                          {r.status || "Unknown"}
-                        </span>
-
-                        <select
-                          value={r.status}
-                          onChange={(e) => onStatusChange(r._id, e.target.value)}
-                          className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none
-                                     focus:ring-2 focus:ring-sky-400/40 [&>option]:bg-white [&>option]:text-slate-900"
-                        >
-                          <option value="NEW">NEW</option>
-                          <option value="CONTACTED">CONTACTED</option>
-                          <option value="PLACED">PLACED</option>
-                        </select>
+                      <div>
+                        <div className="font-semibold text-white">{r.name || "-"}</div>
+                        <div className="text-xs text-white/55">{r.course || "No course"}</div>
+                        <div className="text-xs text-white/45">{fmtDate(r.createdAt)}</div>
                       </div>
-                    </td>
+                    </div>
 
-                    <td className="p-4">
-                      <div className="flex flex-wrap gap-2">
-                        <Link
-                          to={`/admin/feedback/${r._id}`}
-                          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-white/85
-                                     hover:bg-white/10 transition active:scale-[0.98]"
-                        >
-                          <Pencil className="h-4 w-4" />
-                          Edit
-                        </Link>
+                    <span className={["inline-flex rounded-lg border px-2.5 py-1 text-xs font-semibold", statusPill(r.status)].join(" ")}>
+                      {r.status || "NEW"}
+                    </span>
+                  </div>
 
-                        <button
-                          type="button"
-                          onClick={() => askDelete(r._id, r.name)}
-                          className="inline-flex items-center gap-2 rounded-2xl border border-rose-200/20 bg-rose-500/10 px-4 py-2 text-sm font-bold text-rose-200
-                                     hover:bg-rose-500/15 transition active:scale-[0.98]"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                  <div className="mt-3">
+                    <Stars rating={r.rating} compact />
+                  </div>
 
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan="9" className="p-6 text-center text-white/60">
-                      No feedback found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-white/80">{r.feedback || "-"}</p>
+
+                  <div className="mt-3 text-sm text-white/80">
+                    Company: <span className="font-semibold text-white">{r.company || "-"}</span>
+                  </div>
+
+                  <div className="mt-3">
+                    <StatusSelect value={r.status} onChange={(next) => onStatusChange(r._id, next)} />
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Link
+                      to={`/admin/feedback/${r._id}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/90 transition hover:bg-white/15"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit
+                    </Link>
+
+                    <button
+                      type="button"
+                      onClick={() => askDelete(r._id, r.name)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-rose-300/25 bg-rose-500/15 px-3 py-1.5 text-xs font-semibold text-rose-100 transition hover:bg-rose-500/25"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
         )}
-      </div>
+      </section>
 
-      {/* Delete Modal */}
       <ConfirmModal
         open={confirmDel.open}
         title="Delete feedback?"
@@ -364,7 +470,7 @@ export default function FeedbackList() {
           {confirmDel.name ? (
             <>
               {" "}
-              for <span className="font-bold text-white">{confirmDel.name}</span>
+              for <span className="font-semibold text-white">{confirmDel.name}</span>
             </>
           ) : null}
           .
@@ -374,7 +480,7 @@ export default function FeedbackList() {
           <button
             type="button"
             onClick={() => setConfirmDel({ open: false, id: "", name: "" })}
-            className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white/85 hover:bg-white/10"
+            className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white/90 transition hover:bg-white/10"
           >
             Cancel
           </button>
@@ -382,8 +488,7 @@ export default function FeedbackList() {
           <button
             type="button"
             onClick={doDelete}
-            className="flex-1 rounded-2xl bg-rose-500/85 px-4 py-3 text-sm font-bold text-white
-                       transition hover:brightness-110 active:scale-[0.98]"
+            className="flex-1 rounded-xl bg-rose-500/90 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-500"
           >
             Delete
           </button>
@@ -392,5 +497,3 @@ export default function FeedbackList() {
     </div>
   );
 }
-
-

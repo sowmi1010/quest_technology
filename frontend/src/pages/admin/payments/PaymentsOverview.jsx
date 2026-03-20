@@ -12,20 +12,6 @@ import {
 
 import { getPaymentsOverview } from "../../../services/paymentApi";
 
-const STUDENT_GROUP_TABS = [
-  { key: "ALL", label: "All Students" },
-  { key: "NEW", label: "New Students" },
-  { key: "EXISTING", label: "Existing Students" },
-  { key: "COMPLETED", label: "Completed Students" },
-];
-
-const PAYMENT_GROUP_TABS = [
-  { key: "ALL", label: "All Payments" },
-  { key: "NEW", label: "New Payments" },
-  { key: "EXISTING", label: "Existing Payments" },
-  { key: "COMPLETED", label: "Completed Payments" },
-];
-
 const INACTIVITY_FILTER_OPTIONS = [
   { key: "ANY", label: "Any Activity" },
   { key: "30", label: "No payment 30+ days" },
@@ -86,30 +72,6 @@ function csvCell(value) {
   return text;
 }
 
-function groupPillClass(group) {
-  if (group === "NEW") return "border-sky-200/30 bg-sky-500/15 text-sky-200";
-  if (group === "EXISTING") return "border-amber-200/30 bg-amber-500/15 text-amber-200";
-  if (group === "COMPLETED") return "border-emerald-200/30 bg-emerald-500/15 text-emerald-200";
-  return "border-white/10 bg-white/5 text-white/80";
-}
-
-function TabButton({ active, label, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={clsx(
-        "rounded-2xl border px-4 py-2 text-sm font-bold transition active:scale-[0.98]",
-        active
-          ? "border-sky-200/25 bg-sky-500/15 text-white"
-          : "border-white/10 bg-white/5 text-white/75 hover:bg-white/10"
-      )}
-    >
-      {label}
-    </button>
-  );
-}
-
 function StatCard({ title, value, tone = "sky" }) {
   const toneClass =
     tone === "emerald"
@@ -150,9 +112,6 @@ export default function PaymentsOverview() {
 
   const [query, setQuery] = useState("");
   const [keyword, setKeyword] = useState("");
-  const [batchFilter, setBatchFilter] = useState("ALL");
-  const [studentGroup, setStudentGroup] = useState("ALL");
-  const [paymentGroup, setPaymentGroup] = useState("ALL");
   const [dueOnly, setDueOnly] = useState(false);
   const [inactivityFilter, setInactivityFilter] = useState("ANY");
   const [sortBy, setSortBy] = useState("LATEST");
@@ -164,9 +123,6 @@ export default function PaymentsOverview() {
         page,
         limit,
         keyword: keyword || undefined,
-        batch: batchFilter !== "ALL" ? batchFilter : undefined,
-        studentGroup: studentGroup !== "ALL" ? studentGroup : undefined,
-        paymentGroup: paymentGroup !== "ALL" ? paymentGroup : undefined,
         dueOnly: dueOnly ? "1" : undefined,
         inactivityDays: inactivityFilter !== "ANY" ? inactivityFilter : undefined,
         sort: sortBy,
@@ -229,11 +185,11 @@ export default function PaymentsOverview() {
 
   useEffect(() => {
     setPage(1);
-  }, [keyword, batchFilter, studentGroup, paymentGroup, dueOnly, inactivityFilter, sortBy, limit]);
+  }, [keyword, dueOnly, inactivityFilter, sortBy, limit]);
 
   useEffect(() => {
     load();
-  }, [page, limit, keyword, batchFilter, studentGroup, paymentGroup, dueOnly, inactivityFilter, sortBy]);
+  }, [page, limit, keyword, dueOnly, inactivityFilter, sortBy]);
 
   const stats = useMemo(() => {
     return {
@@ -245,12 +201,6 @@ export default function PaymentsOverview() {
       totalOutstanding: Number(summary.totalOutstanding || 0),
     };
   }, [summary]);
-
-  const batches = useMemo(() => {
-    const set = new Set(rows.map((r) => String(r.batchType || "").trim()).filter(Boolean));
-    if (batchFilter !== "ALL") set.add(batchFilter);
-    return ["ALL", ...Array.from(set)];
-  }, [rows, batchFilter]);
 
   const filtered = rows;
 
@@ -274,9 +224,6 @@ export default function PaymentsOverview() {
       "Student Name",
       "Course",
       "Category",
-      "Batch",
-      "Student Tab",
-      "Payment Tab",
       "Total Fee",
       "Total Paid",
       "Balance",
@@ -291,9 +238,6 @@ export default function PaymentsOverview() {
         row.name,
         row.courseTitle,
         row.categoryName,
-        row.batchType,
-        row.studentGroup,
-        row.paymentGroup,
         Number(row.totalFee || 0),
         Number(row.totalPaid || 0),
         Number(row.balance || 0),
@@ -317,7 +261,7 @@ export default function PaymentsOverview() {
   };
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="">
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5 sm:p-6 backdrop-blur-xl">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="flex items-start gap-3">
@@ -367,36 +311,8 @@ export default function PaymentsOverview() {
           Total outstanding balance: <span className="text-white/90">{money(stats.totalOutstanding)}</span>
         </p>
 
-        <div className="mt-4">
-          <div className="mb-2 text-xs font-semibold text-white/55">Student Tabs</div>
-          <div className="flex flex-wrap gap-2">
-            {STUDENT_GROUP_TABS.map((t) => (
-              <TabButton
-                key={t.key}
-                label={t.label}
-                active={studentGroup === t.key}
-                onClick={() => setStudentGroup(t.key)}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-4">
-          <div className="mb-2 text-xs font-semibold text-white/55">Payment Tabs</div>
-          <div className="flex flex-wrap gap-2">
-            {PAYMENT_GROUP_TABS.map((t) => (
-              <TabButton
-                key={t.key}
-                label={t.label}
-                active={paymentGroup === t.key}
-                onClick={() => setPaymentGroup(t.key)}
-              />
-            ))}
-          </div>
-        </div>
-
         <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-12">
-          <div className="lg:col-span-6">
+          <div className="lg:col-span-8">
             <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
               <Search className="h-5 w-5 text-white/45" />
               <input
@@ -408,24 +324,7 @@ export default function PaymentsOverview() {
             </div>
           </div>
 
-          <div className="lg:col-span-2">
-            <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-              <Filter className="h-4 w-4 text-white/50" />
-              <select
-                value={batchFilter}
-                onChange={(e) => setBatchFilter(e.target.value)}
-                className="w-full bg-transparent text-sm font-bold text-white outline-none [&>option]:bg-white [&>option]:text-slate-900"
-              >
-                {batches.map((b) => (
-                  <option key={b} value={b}>
-                    {b === "ALL" ? "All Batches" : b}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-4">
             <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
               <ArrowUpDown className="h-4 w-4 text-white/50" />
               <select
@@ -504,9 +403,6 @@ export default function PaymentsOverview() {
                 <tr className="border-b border-white/10">
                   <th className="p-4 text-left font-semibold text-white/65">Student</th>
                   <th className="p-4 text-left font-semibold text-white/65">Course</th>
-                  <th className="p-4 text-left font-semibold text-white/65">Batch</th>
-                  <th className="p-4 text-left font-semibold text-white/65">Student Tab</th>
-                  <th className="p-4 text-left font-semibold text-white/65">Payment Tab</th>
                   <th className="p-4 text-left font-semibold text-white/65">Fee</th>
                   <th className="p-4 text-left font-semibold text-white/65">Paid</th>
                   <th className="p-4 text-left font-semibold text-white/65">Balance</th>
@@ -531,27 +427,6 @@ export default function PaymentsOverview() {
                       <td className="p-4">
                         <div>{r.courseTitle || "-"}</div>
                         <div className="text-xs text-white/50">{r.categoryName || "-"}</div>
-                      </td>
-                      <td className="p-4">{r.batchType || "-"}</td>
-                      <td className="p-4">
-                        <span
-                          className={clsx(
-                            "inline-flex rounded-2xl border px-3 py-1.5 text-xs font-bold",
-                            groupPillClass(r.studentGroup)
-                          )}
-                        >
-                          {r.studentGroup}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <span
-                          className={clsx(
-                            "inline-flex rounded-2xl border px-3 py-1.5 text-xs font-bold",
-                            groupPillClass(r.paymentGroup)
-                          )}
-                        >
-                          {r.paymentGroup}
-                        </span>
                       </td>
                       <td className="p-4">{money(r.totalFee)}</td>
                       <td className="p-4 text-emerald-200 font-bold">{money(r.totalPaid)}</td>
